@@ -1,0 +1,24 @@
+sudo: required
+
+language: go
+
+go:
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - tip
+
+matrix:
+  allow_failures:
+    - go: tip
+
+install:
+  - go get github.com/Masterminds/glide
+  - go get github.com/mattn/goveralls
+
+script:
+  - glide install
+  - go test $(glide nv)
+
+after_success:
+  - goveralls -service=travis-ci
