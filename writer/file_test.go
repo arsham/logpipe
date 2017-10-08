@@ -9,11 +9,15 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
+	"testing"
+	"time"
 
 	"github.com/arsham/logpipe/writer"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 )
 
 var _ = Describe("Creating the log file", func() {
@@ -44,7 +48,9 @@ var _ = Describe("Creating the log file", func() {
 			It("should create a new file", func() {
 				name := f.Name()
 				os.Remove(name)
-				fl, err := writer.NewFile(name)
+				fl, err := writer.NewFile(
+					writer.WithFileLoc(name),
+				)
 				Expect(err).NotTo(HaveOccurred())
 				defer fl.Close()
 				defer os.Remove(name)
@@ -56,7 +62,9 @@ var _ = Describe("Creating the log file", func() {
 			By("having a file in place")
 
 			It("should not create a new file", func() {
-				fl, err := writer.NewFile(f.Name())
+				fl, err := writer.NewFile(
+					writer.WithFileLoc(f.Name()),
+				)
 				defer fl.Close()
 
 				Expect(err).NotTo(HaveOccurred())
@@ -67,7 +75,9 @@ var _ = Describe("Creating the log file", func() {
 		Describe("generation errors", func() {
 
 			Context("obtaining a File in a non existence place", func() {
-				fl, err := writer.NewFile("/does not exist")
+				fl, err := writer.NewFile(
+					writer.WithFileLoc("/does not exist"),
+				)
 				It("should error", func() {
 					Expect(err).To(HaveOccurred())
 					Expect(fl).To(BeNil())
@@ -76,7 +86,9 @@ var _ = Describe("Creating the log file", func() {
 
 			Context("obtaining a File in a non-writeable place", func() {
 				It("should error", func() {
-					fl, err := writer.NewFile(path.Join("/", "testfile"))
+					fl, err := writer.NewFile(
+						writer.WithFileLoc(path.Join("/", "testfile")),
+					)
 					Expect(err).To(HaveOccurred())
 					Expect(fl).To(BeNil())
 				})
@@ -87,7 +99,9 @@ var _ = Describe("Creating the log file", func() {
 					if err := f.Chmod(0000); err != nil {
 						panic(err)
 					}
-					fl, err := writer.NewFile(f.Name())
+					fl, err := writer.NewFile(
+						writer.WithFileLoc(f.Name()),
+					)
 					Expect(err).To(HaveOccurred())
 					Expect(fl).To(BeNil())
 				})
@@ -114,7 +128,9 @@ var _ = Describe("Writing logs", func() {
 			panic(err)
 		}
 
-		fl, err = writer.NewFile(f.Name())
+		fl, err = writer.NewFile(
+			writer.WithFileLoc(f.Name()),
+		)
 		if err != nil {
 			panic(err)
 		}
@@ -184,22 +200,131 @@ var _ = Describe("Writing logs", func() {
 
 		It("should retain the existing contents", func() {
 			line1 := []byte("line 1 contents")
-			fl, _ = writer.NewFile(f.Name())
+			fl, _ = writer.NewFile(
+				writer.WithFileLoc(f.Name()),
+			)
 			if _, err := fl.Write(line1); err != nil {
 				panic(err)
 			}
 			fl.Flush()
 			fl.Close()
 
-			fl, _ := writer.NewFile(f.Name())
+			fl, _ := writer.NewFile(writer.WithFileLoc(
+				f.Name()),
+			)
 			n, err := fl.Write(line2)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(n).To(Equal(len(line2)))
 			fl.Flush()
 
-			content, err := ioutil.ReadAll(f)
+			content, _ := ioutil.ReadAll(f)
 			Expect(content).To(ContainSubstring(string(line1)))
 			Expect(content).To(ContainSubstring(string(line2)))
 		})
 	})
 })
+
+func setup(t *testing.T) (*os.File, func()) {
+	w, err := ioutil.TempFile("", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return w,
+		func() {
+			w.Close()
+			os.Remove(w.Name())
+		}
+}
+
+type writerMock struct {
+	WriteFunc func([]byte) (int, error)
+	CloseFunc func() error
+	NameFunc  func() string
+}
+
+func (w *writerMock) Write(p []byte) (int, error) { return w.WriteFunc(p) }
+func (w *writerMock) Close() error                { return w.CloseFunc() }
+func (w *writerMock) Name() string                { return w.NameFunc() }
+
+func TestCloseErrors(t *testing.T) {
+	e := errors.New("blah")
+	f := &writerMock{
+		WriteFunc: func(p []byte) (int, error) {
+			return -1, e
+		},
+	}
+
+	fl, _ := writer.NewFile(writer.WithWriter(f))
+	fl.Write([]byte("dummy"))
+	if err := fl.Close(); errors.Cause(err) != e {
+		t.Errorf("want (%s), got(%v)", e, err)
+	}
+}
+
+func TestWriteErrors(t *testing.T) {
+	e := errors.New("blah1")
+	f := &writerMock{
+		WriteFunc: func(p []byte) (int, error) {
+			return 1, e
+		},
+	}
+
+	buf := bufio.NewWriterSize(f, 2)
+	fl, _ := writer.NewFile(writer.WithBufWriter(buf))
+
+	if _, err := fl.Write([]byte("dd")); errors.Cause(err) != e {
+		t.Errorf("want (%s), got(%v)", e, err)
+	}
+}
+
+func TestWithDelay(t *testing.T) {
+	fl := &writer.File{}
+	if err := writer.WithFlushDelay(0)(fl); err == nil {
+		t.Error("want error, got nil")
+	}
+
+	m := writer.MinimumDelay - time.Nanosecond
+	if err := writer.WithFlushDelay(m)(fl); err == nil {
+		t.Error("want error, got nil")
+	}
+}
+
+func TestSync(t *testing.T) {
+	t.Parallel()
+	delay := writer.MinimumDelay + 100*time.Millisecond
+	w, teardown := setup(t)
+	defer teardown()
+
+	fl, err := writer.NewFile(
+		writer.WithFlushDelay(delay),
+		writer.WithWriter(w),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := []byte("this is the message")
+	_, err = fl.Write(message)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// should not yet contain the message
+	content, err := ioutil.ReadFile(w.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(string(content), string(message)) {
+		t.Errorf("want no contents, got (%s)", content)
+	}
+
+	<-time.After(delay) // waiting to sync
+	content, err = ioutil.ReadFile(w.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(content), string(message)) {
+		t.Errorf("want (%s) in contents, got (%s)", message, content)
+	}
+}

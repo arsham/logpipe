@@ -6,6 +6,8 @@ package writer
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -13,45 +15,42 @@ import (
 	"github.com/pkg/errors"
 )
 
+// MinimumDelay is the minimum time set for flush delays.
+var MinimumDelay = 10 * time.Millisecond
+
+type writeCloseNamer interface {
+	io.WriteCloser
+	Name() string
+}
+
 // File writs records log entries to a file. It buffers the writes to obtain
 // better performance. It flushes the buffer every 1 seconds.
 // It implements io.WriteCloser interface.
 type File struct {
-	name       string
-	file       *os.File
+	file writeCloseNamer
+
 	sync.Mutex // guards against the buffer
 	buf        *bufio.Writer
+
+	delay time.Duration // the delay between flushes
 }
 
 // NewFile returns error if the file can not be created.
-func NewFile(location string) (*File, error) {
-	var (
-		f   *os.File
-		err error
-	)
+// It starts a goroutine that flushes the logs in intervals.
+func NewFile(conf ...func(*File) error) (*File, error) {
+	fl := &File{}
 
-	if f, err = os.OpenFile(location, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-		if os.IsPermission(err) {
-			return nil, errors.Wrap(err, "opening file")
+	for _, f := range conf {
+		if err := f(fl); err != nil {
+			return nil, err
 		}
 	}
-	buf := bufio.NewWriter(f)
 
-	fl := &File{
-		file: f,
-		name: location,
-		buf:  buf,
+	if fl.delay == 0 {
+		WithFlushDelay(time.Second)(fl)
 	}
 
-	// this goroutine will flush the logs onto the file
-	go func(buf *bufio.Writer) {
-		ticker := time.NewTicker(time.Second)
-		for range ticker.C {
-			fl.Lock()
-			buf.Flush()
-			fl.Unlock()
-		}
-	}(buf)
+	go fl.sync()
 
 	return fl, nil
 }
@@ -66,7 +65,7 @@ func (f *File) Close() error {
 
 // Name returns the file location on disk.
 func (f *File) Name() string {
-	return f.name
+	return f.file.Name()
 }
 
 // Write writes the input bytes to the file.
@@ -92,4 +91,59 @@ func (f *File) Flush() error {
 	f.Lock()
 	defer f.Unlock()
 	return f.buf.Flush()
+}
+
+// flusher flushes the logs onto the file in intervals.
+func (f *File) sync() {
+	for {
+		<-time.After(f.delay)
+		f.Lock()
+		f.buf.Flush()
+		f.Unlock()
+	}
+}
+
+// WithFileLoc opens a new file at location, or creates one if not exists.
+// It returns error if it could not create or have write permission to the file.
+func WithFileLoc(location string) func(*File) error {
+	return func(f *File) error {
+		var (
+			file *os.File
+			err  error
+		)
+		if file, err = os.OpenFile(location, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+			if os.IsPermission(err) {
+				return errors.Wrap(err, "opening file")
+			}
+		}
+		return WithWriter(file)(f)
+	}
+}
+
+// WithWriter sets the output as the given writer.
+func WithWriter(w writeCloseNamer) func(*File) error {
+	return func(f *File) error {
+		f.file = w
+		f.buf = bufio.NewWriter(f.file)
+		return nil
+	}
+}
+
+// WithBufWriter sets the buffered writer.
+func WithBufWriter(w *bufio.Writer) func(*File) error {
+	return func(f *File) error {
+		f.buf = w
+		return nil
+	}
+}
+
+// WithFlushDelay sets the delay time between flushes.
+func WithFlushDelay(delay time.Duration) func(*File) error {
+	return func(f *File) error {
+		if delay < MinimumDelay {
+			return fmt.Errorf("low (%d) delay", delay)
+		}
+		f.delay = delay
+		return nil
+	}
 }
