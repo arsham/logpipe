@@ -1,2 +1,15 @@
 package: github.com/arsham/logpipe
-import: []
+import:
+- package: github.com/Sirupsen/logrus
+  version: v1.0.3
+- package: github.com/pkg/errors
+  version: v0.8.0
+- package: github.com/bitly/go-simplejson
+  version: v0.5.0
+testImport:
+- package: github.com/onsi/ginkgo
+  version: v1.4.0
+  subpackages:
+  - extensions/table
+- package: github.com/onsi/gomega
+  version: v1.2.0

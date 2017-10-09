@@ -6,7 +6,6 @@ package writer_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -36,12 +35,7 @@ func BenchmarkFatVeryTallFileWrites(b *testing.B) {
 func benchmarkFileWrites(b *testing.B, col, row int) {
 	rowString := bytes.Repeat([]byte("a"), col)
 	for n := 0; n < b.N; n++ {
-		f, err := ioutil.TempFile("", "benchtest")
-		if err != nil {
-			panic(err)
-		}
-		defer os.Remove(f.Name())
-		fl, err := writer.NewFile(writer.WithFileLoc(f.Name()))
+		fl, err := writer.NewFile(writer.WithFileLoc(os.DevNull))
 		defer fl.Flush()
 		if err != nil {
 			panic(err)

@@ -3,4 +3,6 @@
 // License that can be found in the LICENSE file.
 
 // Package writer contains a series of writers that can write the log entries.
+// A File can write logs to a given file. It will collapse the object if a json
+// object is given, and uses them as the context of the log.
 package writer

@@ -1,19 +1,22 @@
-hash: 3ea51101aa5b36376b91a9b5960846b5d5f6f091390385710ba27d298e279149
-updated: 2017-10-08T13:46:41.195949402+01:00
+hash: 284a0efaf523ba8fef91e96f8dba9f225b53235a49280a340a9282f8829bc507
+updated: 2017-10-08T23:56:57.108063034+01:00
 imports:
+- name: github.com/bitly/go-simplejson
+  version: aabad6e819789e569bd6aabf444c935aa9ba1e44
 - name: github.com/pkg/errors
-  version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/Sirupsen/logrus
-  version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: golang.org/x/sys
   version: ebfc5b4631820b793c9010c87fd8fef0f39eb082
   subpackages:
   - unix
 testImports:
 - name: github.com/onsi/ginkgo
-  version: 11459a886d9cd66b319dac7ef1e917ee221372c9
+  version: 9eda700730cba42af70d53180f9dcce9266bc2bc
   subpackages:
   - config
+  - extensions/table
   - internal/codelocation
   - internal/containernode
   - internal/failer
@@ -31,7 +34,7 @@ testImports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: dcabb60a477c2b6f456df65037cb6708210fbb02
+  version: c893efa28eb45626cdaa76c9f653b62488858837
   subpackages:
   - format
   - internal/assertion
