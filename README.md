@@ -27,7 +27,7 @@ Logpipe can redirect your application's `logs` to a generic logfile, or to [Elas
 
 ## Installation
 
-I will provide a docker image soon, but for now it needs to be installed. You need golang >= 1.7 and [glide][glide] installed. Simply do:
+I will provide a docker image soon, but for now it needs to be installed. You need golang >= 1.8 and [glide][glide] installed. Simply do:
 
 ```bash
 go get github.com/arsham/logpipe
