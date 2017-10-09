@@ -317,7 +317,7 @@ func TestSync(t *testing.T) {
 		t.Errorf("want no contents, got (%s)", content)
 	}
 
-	<-time.After(delay) // waiting to sync
+	<-time.After(delay + 200*time.Millisecond) // waiting to sync
 	content, err = ioutil.ReadFile(w.Name())
 	if err != nil {
 		t.Fatal(err)
