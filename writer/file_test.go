@@ -276,6 +276,30 @@ func TestWriteErrors(t *testing.T) {
 	}
 }
 
+func TestWriteOnClosedFile(t *testing.T) {
+	w, teardown := setup(t)
+	defer teardown()
+
+	file, err := writer.NewFile(
+		writer.WithWriter(w),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	message := []byte("this is the message")
+	file.Write(message)
+	err = file.Flush()
+	if err == nil {
+		t.Error("want (error), got nil")
+	}
+}
+
 func TestWithDelay(t *testing.T) {
 	file := &writer.File{}
 	if err := writer.WithFlushDelay(0)(file); err == nil {

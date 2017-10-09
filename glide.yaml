@@ -9,6 +9,7 @@ import:
 - package: golang.org/x/crypto
   subpackages:
   - ssh/terminal
+- package: github.com/jinzhu/now
 testImport:
 - package: github.com/onsi/ginkgo
   version: v1.4.0
