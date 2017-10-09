@@ -4,4 +4,6 @@
 
 // Package reader contains a series of readers that can understand how an entry
 // can be written to a destination.
+// Plain will produce a one line entry to be written on the logs, like how nginx
+// logs look like.
 package reader

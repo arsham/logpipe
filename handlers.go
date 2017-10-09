@@ -13,6 +13,8 @@ import (
 	jason "github.com/bitly/go-simplejson"
 )
 
+// LogService listens to the incoming http requests and decides how to route
+// the payload to be written.
 type LogService struct {
 	Writer io.Writer
 }
