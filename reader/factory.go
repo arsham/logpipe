@@ -7,8 +7,8 @@ package reader
 import (
 	"io"
 
+	"github.com/araddon/dateparse"
 	jason "github.com/bitly/go-simplejson"
-	"github.com/jinzhu/now"
 	"github.com/pkg/errors"
 )
 
@@ -36,7 +36,7 @@ func GetReader(input []byte) (io.Reader, error) {
 	if err != nil || timestamp == "" {
 		return nil, errors.Wrap(err, "empty timestamp")
 	}
-	t, err := now.Parse(timestamp)
+	t, err := dateparse.ParseAny(timestamp)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing timestamp")
 	}
