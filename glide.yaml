@@ -1,9 +1,9 @@
 package: github.com/arsham/logpipe
 import:
 - package: github.com/pkg/errors
-  version: v0.8.0
+  version: master
 - package: github.com/bitly/go-simplejson
-  version: v0.5.0
+  version: master
 - package: golang.org/x/crypto
   subpackages:
   - ssh/terminal
@@ -14,8 +14,8 @@ import:
   version: master
 testImport:
 - package: github.com/onsi/ginkgo
-  version: v1.4.0
+  version: master
   subpackages:
   - extensions/table
 - package: github.com/onsi/gomega
-  version: v1.2.0
+  version: master
