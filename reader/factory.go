@@ -6,45 +6,61 @@ package reader
 
 import (
 	"io"
+	"time"
 
 	"github.com/araddon/dateparse"
+	"github.com/arsham/logpipe/internal"
 	jason "github.com/bitly/go-simplejson"
 	"github.com/pkg/errors"
+)
+
+const (
+	// INFO is a log level.
+	INFO = "INFO"
 )
 
 // GetReader tries to guess an appropriate reader from the input byte slice
 // and returns it. It will fall back to Plain reader.
 // It returns an error if there is no type or message are in the input or the
 // message is empty.
-func GetReader(input []byte) (io.Reader, error) {
+func GetReader(input []byte, logger internal.FieldLogger) (io.Reader, error) {
 	j, err := jason.NewJson(input)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding json object")
+		logger.Errorf("decoding json object: %s", err)
+		return nil, errors.Wrap(err, ErrDecodeJSON.Error())
 	}
 
 	kind, err := j.Get("type").String()
 	if err != nil || kind == "" {
-		return nil, errors.Wrap(err, "empty type")
+		logger.Debugf("falling back to info: %s", input)
+		kind = INFO
 	}
 
 	message, err := j.Get("message").String()
 	if err != nil || message == "" {
-		return nil, errors.Wrap(err, "empty message")
+		err = errors.Wrap(err, ErrEmptyMessage.Error())
+		logger.Error(err)
+		return nil, err
 	}
 
 	timestamp, err := j.Get("timestamp").String()
 	if err != nil || timestamp == "" {
-		return nil, errors.Wrap(err, "empty timestamp")
+		logger.Debugf("no timestamp provided: %s", input)
+		timestamp = time.Now().Format(TimestampFormat)
 	}
+
 	t, err := dateparse.ParseAny(timestamp)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing timestamp")
+		err = errors.Wrap(err, ErrTimestamp.Error())
+		logger.Error(err)
+		return nil, err
 	}
 
 	r := &Plain{
 		Message:   message,
 		Kind:      kind,
 		Timestamp: t,
+		Logger:    logger,
 	}
 	return r, nil
 }

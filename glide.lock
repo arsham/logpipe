@@ -1,14 +1,18 @@
-hash: 7784baddb6006055585a960232c12d81133e0dc5f7b055ed96611a6cb4113552
-updated: 2017-10-09T23:19:27.029770829+01:00
+hash: 71969c0349716e7a052e63da5ba1c68e9a06c7ea53fcc58f3efccdc814fae818
+updated: 2017-10-10T18:05:18.878881952+01:00
 imports:
 - name: github.com/araddon/dateparse
   version: ca7e753bd149dae747d76fa7d52b20b920f3a814
 - name: github.com/bitly/go-simplejson
   version: aabad6e819789e569bd6aabf444c935aa9ba1e44
+- name: github.com/namsral/flag
+  version: 71ceffbeb0ba60fccc853971bb3ed4d7d90bfd04
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
-- name: github.com/Sirupsen/logrus
-  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+- name: github.com/sirupsen/logrus
+  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
+  subpackages:
+  - hooks/test
 - name: golang.org/x/crypto
   version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
   subpackages:
@@ -44,6 +48,8 @@ testImports:
   version: c893efa28eb45626cdaa76c9f653b62488858837
   subpackages:
   - format
+  - gbytes
+  - gexec
   - internal/assertion
   - internal/asyncassertion
   - internal/oraclematcher

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/arsham/logpipe/internal"
 	"github.com/pkg/errors"
 )
 
@@ -32,7 +33,8 @@ type File struct {
 	sync.Mutex // guards against the buffer
 	buf        *bufio.Writer
 
-	delay time.Duration // the delay between flushes
+	delay  time.Duration // the delay between flushes
+	logger internal.FieldLogger
 }
 
 // NewFile returns error if the file can not be created.
@@ -144,6 +146,17 @@ func WithFlushDelay(delay time.Duration) func(*File) error {
 			return fmt.Errorf("low (%d) delay", delay)
 		}
 		f.delay = delay
+		return nil
+	}
+}
+
+// WithLogger sets the delay time between flushes.
+func WithLogger(logger internal.FieldLogger) func(*File) error {
+	return func(f *File) error {
+		if logger == nil {
+			return errors.New("nil logger")
+		}
+		f.logger = logger
 		return nil
 	}
 }

@@ -24,4 +24,5 @@ script:
   - go test $(glide nv)
 
 after_success:
-  - goveralls -service=travis-ci
+  # the main.go file is fully covered in main_test.go
+  - goveralls -service=travis-ci -ignore="main.go"

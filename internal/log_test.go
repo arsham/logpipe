@@ -37,7 +37,7 @@ func TestGetLoggerLevels(t *testing.T) {
 	for i, tc := range tcs {
 		name := fmt.Sprintf("case_%d", i)
 		t.Run(name, func(t *testing.T) {
-			logger := internal.Get(tc.level)
+			logger := internal.GetLogger(tc.level)
 			if internal.Level(logger.Level) != tc.expected {
 				t.Errorf("want (%v), got (%v)", tc.expected, logger.Level)
 			}

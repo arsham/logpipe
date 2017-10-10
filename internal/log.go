@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // FieldLogger interface set by logrus
@@ -37,8 +37,8 @@ const (
 	ErrorLevel = logrus.ErrorLevel
 )
 
-// Get returns the default logger with the given log level.
-func Get(level string) *Logger {
+// GetLogger returns the default logger with the given log level.
+func GetLogger(level string) *Logger {
 	logrus.SetLevel(ErrorLevel)
 	customFormatter := new(logrus.TextFormatter)
 	customFormatter.TimestampFormat = "2006-01-02 15:04:05"

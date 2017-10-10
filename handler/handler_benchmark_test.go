@@ -2,7 +2,7 @@
 // Use of this source code is governed by the Apache 2.0 license
 // License that can be found in the LICENSE file.
 
-package main_test
+package handler_test
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	logpipe "github.com/arsham/logpipe"
+	"github.com/arsham/logpipe/handler"
 	"github.com/arsham/logpipe/reader"
 	"github.com/arsham/logpipe/writer"
 )
@@ -44,7 +44,7 @@ func benchmarkHandler(b *testing.B, msgLen int) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	s := &logpipe.LogService{Writer: file}
+	s := &handler.Service{Writer: file}
 
 	handler := http.HandlerFunc(s.RecieveHandler)
 	ts := httptest.NewServer(handler)
