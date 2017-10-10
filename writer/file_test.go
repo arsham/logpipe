@@ -34,14 +34,11 @@ var _ = Describe("File", func() {
 
 			BeforeEach(func() {
 				cwd, err := os.Getwd()
-				if err != nil {
-					panic(err)
-				}
+				Expect(err).NotTo(HaveOccurred())
 
 				f, err = ioutil.TempFile(cwd, "test")
-				if err != nil {
-					panic(err)
-				}
+				Expect(err).NotTo(HaveOccurred())
+
 				filename = f.Name()
 			})
 
@@ -100,9 +97,8 @@ var _ = Describe("File", func() {
 
 				Context("obtaining a File with a non-writeable file", func() {
 					BeforeEach(func() {
-						if err := f.Chmod(0000); err != nil {
-							panic(err)
-						}
+						err := f.Chmod(0000)
+						Expect(err).NotTo(HaveOccurred())
 					})
 					It("should error", func() {
 						Expect(err).To(HaveOccurred())
@@ -123,21 +119,15 @@ var _ = Describe("File", func() {
 		BeforeEach(func() {
 			var err error
 			cwd, err := os.Getwd()
-			if err != nil {
-				panic(err)
-			}
+			Expect(err).NotTo(HaveOccurred())
 
 			f, err = ioutil.TempFile(cwd, "test")
-			if err != nil {
-				panic(err)
-			}
+			Expect(err).NotTo(HaveOccurred())
 
 			file, err = writer.NewFile(
 				writer.WithFileLoc(f.Name()),
 			)
-			if err != nil {
-				panic(err)
-			}
+			Expect(err).NotTo(HaveOccurred())
 			line1 = []byte("line 1 contents")
 			line2 = []byte("line 2 contents")
 		})
@@ -308,6 +298,13 @@ func TestWithDelay(t *testing.T) {
 
 	m := writer.MinimumDelay - time.Nanosecond
 	if err := writer.WithFlushDelay(m)(file); err == nil {
+		t.Error("want error, got nil")
+	}
+}
+
+func TestWithLogger(t *testing.T) {
+	file := &writer.File{}
+	if err := writer.WithLogger(nil)(file); err == nil {
 		t.Error("want error, got nil")
 	}
 }

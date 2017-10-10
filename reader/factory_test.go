@@ -7,42 +7,79 @@ package reader_test
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus/hooks/test"
 )
 
 var _ = Describe("GetReader", func() {
+	var (
+		hook   *test.Hook
+		logger internal.FieldLogger
+	)
+
+	BeforeEach(func() {
+		logger, hook = test.NewNullLogger()
+
+	})
+	AfterEach(func() {
+		hook.Reset()
+	})
+
 	Describe("guessing a Plain reader", func() {
-		DescribeTable("with bad json object", func(message, errMsg string) {
-			r, err := reader.GetReader([]byte(message))
-			if errMsg != "" {
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring(errMsg))
+		DescribeTable("with bad json object", func(message string, err error) {
+			r, er := reader.GetReader([]byte(message), logger)
+			if err != nil {
+				Expect(er.Error()).To(ContainSubstring(err.Error()))
+				Expect(hook.LastEntry().Message).To(ContainSubstring(err.Error()))
 				Expect(r).To(BeNil())
 			} else {
-				Expect(err).NotTo(HaveOccurred())
+				Expect(er).NotTo(HaveOccurred())
 				Expect(r).NotTo(BeNil())
 			}
 		},
-			Entry("no message", `{"type":"error","timestamp":"2017-01-01"}`, "empty message"),
-			Entry("no type", `{"message":"error should occur","timestamp":"2017-01-01"}`, "empty type"),
-			Entry("no timestamp", `{"message":"error should occur","type":"info"}`, "empty timestamp"),
-			Entry("bad timestamp", `{"type":"error", "message":"ok","timestamp":"01a"}`, "parsing timestamp"),
-			Entry("all right", `{"type":"error", "message":"Devil is the king!","timestamp":"2017-01-01"}`, ""),
-			Entry("capital type", `{"type":"INFO", "message":"Devil is the king!","timestamp":"2017-01-01"}`, ""),
-			Entry("all right + more", `{"type":"error", "message":"Devil","timestamp":"2017-01-01", "king": true}`, ""),
-			Entry("decoding json object", `{"type":"error", ,}`, "decoding json object"),
+			Entry("no message", `{"type":"error","timestamp":"2017-01-01"}`, reader.ErrEmptyMessage),
+			Entry("no type", `{"message":"error should not occur","timestamp":"2017-01-01"}`, nil),
+			Entry("no timestamp", `{"message":"error should not occur","type":"info"}`, nil),
+			Entry("bad timestamp", `{"message":"ok","timestamp":"01a"}`, reader.ErrTimestamp),
+			Entry("all right", `{"type":"error", "message":"Devil is the king!","timestamp":"2017-01-01"}`, nil),
+			Entry("all right too", `{"message":"Devil is the king!"}`, nil),
+			Entry("capital type", `{"type":"INFO", "message":"Devil is the king!"}`, nil),
+			Entry("all right + more", `{"type":"error", "message":"Devil","timestamp":"2017-01-01", "king": true}`, nil),
+			Entry("decoding json object", `{"type":"error", ,}`, reader.ErrDecodeJSON),
 		)
+
+		Context("when there is no type defined", func() {
+			It("should set it as info", func() {
+				r, err := reader.GetReader([]byte(`{"message":"blah"}`), logger)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(r).NotTo(BeNil())
+				p := r.(*reader.Plain)
+				Expect(p.Kind).To(Equal(reader.INFO))
+			})
+		})
+
+		Context("when there is no timestamp defined", func() {
+			It("should set it as the time it receives the log", func() {
+				r, err := reader.GetReader([]byte(`{"message":"blah"}`), logger)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(r).NotTo(BeNil())
+				p := r.(*reader.Plain)
+				Expect(p.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
+			})
+		})
 
 		Context("given a one line log", func() {
 			input := []byte(fmt.Sprintf(
 				`{"type":"error","message":"%s","timestamp":"2017-01-01"}`,
 				strings.Repeat("lhad ;adfadf adfaf", 100),
 			))
-			r, err := reader.GetReader(input)
+			r, err := reader.GetReader(input, logger)
 			It("returns a Plain object", func() {
 				Expect(r).To(BeAssignableToTypeOf(&reader.Plain{}))
 			})
@@ -55,7 +92,7 @@ var _ = Describe("GetReader", func() {
 			input := []byte(fmt.Sprintf(
 				`{"type":"error","message":"sdsd sdsd \n sdddds \n\r sdkj sdds \r\n sdsd","timestamp":"2017-01-01"}`,
 			))
-			r, err := reader.GetReader(input)
+			r, err := reader.GetReader(input, logger)
 			It("returns a Plain object", func() {
 				Expect(r).To(BeAssignableToTypeOf(&reader.Plain{}))
 			})

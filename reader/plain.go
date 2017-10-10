@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/arsham/logpipe/internal"
 )
 
 // TimestampFormat is the default formatting defined for logs.
@@ -33,6 +33,7 @@ type Plain struct {
 	Kind      string
 	Message   string
 	Timestamp time.Time
+	Logger    internal.FieldLogger
 
 	once     sync.Once
 	compiled []byte
@@ -43,15 +44,18 @@ func (p *Plain) Read(b []byte) (int, error) {
 	var n int
 
 	if p.Timestamp.Equal(time.Time{}) {
-		return 0, errors.New("nil timestamp")
+		p.Logger.Error(ErrNilTimestamp)
+		return 0, ErrNilTimestamp
 	}
 
 	if p.Message == "" {
-		return 0, errors.New("empty message")
+		p.Logger.Error(ErrEmptyMessage)
+		return 0, ErrEmptyMessage
 	}
 
 	if p.Kind == "" {
-		return 0, errors.New("empty log kind")
+		p.Logger.Debugf("falling back to info: %s", b)
+		p.Kind = INFO
 	}
 
 	if len(p.compiled) > 0 && p.current >= len(p.compiled) {

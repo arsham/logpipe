@@ -1,7 +1,5 @@
 package: github.com/arsham/logpipe
 import:
-- package: github.com/Sirupsen/logrus
-  version: v1.0.3
 - package: github.com/pkg/errors
   version: v0.8.0
 - package: github.com/bitly/go-simplejson
@@ -10,6 +8,10 @@ import:
   subpackages:
   - ssh/terminal
 - package: github.com/araddon/dateparse
+- package: github.com/namsral/flag
+  version: v1.7.4-pre
+- package: github.com/sirupsen/logrus
+  version: master
 testImport:
 - package: github.com/onsi/ginkgo
   version: v1.4.0

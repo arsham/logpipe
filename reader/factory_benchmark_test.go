@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/reader"
 )
 
@@ -26,6 +27,7 @@ func BenchmarkGetReaderPlainLarge(b *testing.B) {
 
 func benchmarkGetReaderPlain(b *testing.B, msg, timestamp string, length int) {
 	b.StopTimer()
+	logger := internal.DiscardLogger()
 	input := []byte(
 		fmt.Sprintf(
 			`{"type":"error","message":"%s","timestamp":"%s"}`,
@@ -35,7 +37,7 @@ func benchmarkGetReaderPlain(b *testing.B, msg, timestamp string, length int) {
 	)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := reader.GetReader(input)
+		_, err := reader.GetReader(input, logger)
 		if err != nil {
 			b.Error(err)
 		}

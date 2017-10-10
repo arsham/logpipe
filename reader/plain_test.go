@@ -12,94 +12,106 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus/hooks/test"
 )
 
 var _ = Describe("Plain", func() {
+	var (
+		hook   *test.Hook
+		logger internal.FieldLogger
+	)
+
+	BeforeEach(func() {
+		logger, hook = test.NewNullLogger()
+
+	})
+	AfterEach(func() {
+		hook.Reset()
+	})
+
 	Describe("Read", func() {
-		Describe("Errors", func() {
-			var (
-				r             *reader.Plain
-				kind, message string
-				timestamp     time.Time
-				err           error
-				p             []byte
-			)
+		var (
+			kind, message string
+			timestamp     time.Time
+			err           error
+			bs            []byte
+			rp            *reader.Plain
+		)
 
-			JustBeforeEach(func() {
-				r = &reader.Plain{
-					Kind:      kind,
-					Message:   message,
-					Timestamp: timestamp,
-				}
-				p = make([]byte, 0)
-				_, err = r.Read(p)
-			})
+		JustBeforeEach(func() {
+			rp = &reader.Plain{
+				Kind:      kind,
+				Message:   message,
+				Timestamp: timestamp,
+				Logger:    logger,
+			}
+			bs = make([]byte, 0)
+			_, err = rp.Read(bs)
+		})
 
-			AfterEach(func() {
-				kind = ""
-				message = ""
+		AfterEach(func() {
+			kind = ""
+			message = ""
+			timestamp = time.Time{}
+		})
+
+		Context("providing nil Timestamp", func() {
+
+			BeforeEach(func() {
+				message = "this is a message"
 				timestamp = time.Time{}
 			})
 
-			Context("nil Timestamp will cause an error", func() {
+			It("returns an error with a warning about timestamp", func() {
+				Expect(errors.Cause(err)).To(Equal(reader.ErrNilTimestamp))
+				Expect(hook.LastEntry().Message).To(ContainSubstring(reader.ErrNilTimestamp.Error()))
+			})
+			Specify("input buffer should be empty", func() {
+				Expect(bs).To(BeEmpty())
+			})
+		})
 
-				BeforeEach(func() {
-					kind = "error"
-					message = "this is a message"
-					timestamp = time.Time{}
-				})
-
-				It("returns error containing a warning about timestamp", func() {
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("timestamp"))
-				})
-				Specify("input buffer is empty", func() {
-					Expect(p).To(BeEmpty())
-				})
+		Context("providing an empty message", func() {
+			BeforeEach(func() {
+				timestamp = time.Now()
 			})
 
-			Context("empty message will cause an error", func() {
-				BeforeEach(func() {
-					kind = "error"
-					timestamp = time.Now()
-				})
+			It("returns error containing a warning about message", func() {
+				Expect(errors.Cause(err)).To(Equal(reader.ErrEmptyMessage))
+				Expect(hook.LastEntry().Message).To(ContainSubstring(reader.ErrEmptyMessage.Error()))
+			})
+		})
 
-				It("returns error containing a warning about message", func() {
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("message"))
-				})
+		Context("empty kind", func() {
+			BeforeEach(func() {
+				message = "this is a message"
+				timestamp = time.Now()
 			})
 
-			Context("empty kind will cause an error", func() {
-				BeforeEach(func() {
-					message = "this is a message"
-					timestamp = time.Now()
-				})
-
-				It("returns error containing a warning about kind", func() {
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("kind"))
-				})
+			It("should fall back to info", func() {
+				Expect(err).NotTo(HaveOccurred())
+				Expect(strings.ToLower(rp.Kind)).To(Equal("info"))
 			})
-
 		})
 
 		Describe("constructing log entries", func() {
 
 			Describe("Read method", func() {
 				var (
-					now     = time.Now()
-					nowStr  = now.Format(reader.TimestampFormat)
-					p       *reader.Plain
+					rp      *reader.Plain
 					kind    string
 					message = strings.Repeat("this is a long message", 150)
+					now     = time.Now()
+					nowStr  = now.Format(reader.TimestampFormat)
 				)
 
 				JustBeforeEach(func() {
-					p = &reader.Plain{
+					rp = &reader.Plain{
 						Kind:      kind,
 						Message:   message,
 						Timestamp: now,
@@ -122,11 +134,11 @@ var _ = Describe("Plain", func() {
 						b = make([]byte, len(expected))
 					})
 					It("should not error or return io.EOF", func() {
-						_, err := p.Read(b)
+						_, err := rp.Read(b)
 						Expect(err).To(Or(BeNil(), Equal(io.EOF)))
 					})
 					Specify("length and return value to be as expected", func() {
-						n, _ := p.Read(b)
+						n, _ := rp.Read(b)
 						Expect(n).To(Equal(len(expected)))
 						Expect(b).To(BeEquivalentTo(expected))
 					})
@@ -144,12 +156,12 @@ var _ = Describe("Plain", func() {
 						buf = &bytes.Buffer{}
 					})
 					It("should not error or return io.EOF", func() {
-						_, err := io.Copy(buf, p)
+						_, err := io.Copy(buf, rp)
 						Expect(err).NotTo(HaveOccurred())
 						Expect(err).To(Or(BeNil(), Equal(io.EOF)))
 					})
 					Specify("length and return value to be as expected", func() {
-						n, _ := io.Copy(buf, p)
+						n, _ := io.Copy(buf, rp)
 						Expect(int(n)).To(Equal(len(expected)))
 						Expect(buf.String()).To(BeEquivalentTo(expected))
 					})
@@ -163,11 +175,11 @@ var _ = Describe("Plain", func() {
 						kind = "error"
 					})
 					It("should not error or return io.EOF", func() {
-						_, err := ioutil.ReadAll(p)
+						_, err := ioutil.ReadAll(rp)
 						Expect(err).To(Or(BeNil(), Equal(io.EOF)))
 					})
 					Specify("length and return value to be as expected", func() {
-						b, _ := ioutil.ReadAll(p)
+						b, _ := ioutil.ReadAll(rp)
 						Expect(len(b)).To(Equal(len(expected)))
 						Expect(b).To(BeEquivalentTo(expected))
 					})
