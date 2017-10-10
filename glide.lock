@@ -1,14 +1,14 @@
-hash: 71969c0349716e7a052e63da5ba1c68e9a06c7ea53fcc58f3efccdc814fae818
-updated: 2017-10-10T18:05:18.878881952+01:00
+hash: 5f67f858060e74738d2a3549bc837f5870adb119ca3927ea3e215af4eda09f63
+updated: 2017-10-10T21:20:29.577452906+01:00
 imports:
 - name: github.com/araddon/dateparse
   version: ca7e753bd149dae747d76fa7d52b20b920f3a814
 - name: github.com/bitly/go-simplejson
-  version: aabad6e819789e569bd6aabf444c935aa9ba1e44
+  version: da1a8928f709389522c8023062a3739f3b4af419
 - name: github.com/namsral/flag
   version: 71ceffbeb0ba60fccc853971bb3ed4d7d90bfd04
 - name: github.com/pkg/errors
-  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+  version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
 - name: github.com/sirupsen/logrus
   version: 89742aefa4b206dcf400792f3bd35b542998eb3b
   subpackages:
@@ -24,7 +24,7 @@ imports:
   - windows
 testImports:
 - name: github.com/onsi/ginkgo
-  version: 9eda700730cba42af70d53180f9dcce9266bc2bc
+  version: 11459a886d9cd66b319dac7ef1e917ee221372c9
   subpackages:
   - config
   - extensions/table
@@ -45,7 +45,7 @@ testImports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: c893efa28eb45626cdaa76c9f653b62488858837
+  version: dcabb60a477c2b6f456df65037cb6708210fbb02
   subpackages:
   - format
   - gbytes
