@@ -1,12 +1,12 @@
-hash: 5f67f858060e74738d2a3549bc837f5870adb119ca3927ea3e215af4eda09f63
-updated: 2017-10-10T21:20:29.577452906+01:00
+hash: a69184cc8b334d936515d65c537714639a49eb8cda5a381802727d110f6b1b09
+updated: 2017-10-11T13:10:58.411569203+01:00
 imports:
 - name: github.com/araddon/dateparse
   version: ca7e753bd149dae747d76fa7d52b20b920f3a814
 - name: github.com/bitly/go-simplejson
   version: da1a8928f709389522c8023062a3739f3b4af419
 - name: github.com/namsral/flag
-  version: 71ceffbeb0ba60fccc853971bb3ed4d7d90bfd04
+  version: 67f268f20922975c067ed799e4be6bacf152208c
 - name: github.com/pkg/errors
   version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
 - name: github.com/sirupsen/logrus

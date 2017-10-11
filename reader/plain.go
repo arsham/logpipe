@@ -7,15 +7,19 @@ package reader
 import (
 	"bytes"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/arsham/logpipe/internal"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // TimestampFormat is the default formatting defined for logs.
 var TimestampFormat = time.RFC3339
+
+// var TimestampFormat = "2006-01-02 15:04:05"
 
 // Plain implements the io.Reader interface and can read a json object and
 // output a one line error message. For example:
@@ -40,9 +44,36 @@ type Plain struct {
 	current  int //current position on reading the message
 }
 
-func (p *Plain) Read(b []byte) (int, error) {
-	var n int
+// TextFormatter is used for rendering a custom format. We need to put the time
+// at the very beginning of the line.
+type TextFormatter struct {
+	logrus.TextFormatter
+}
 
+// Format will use the timestamp passed by the payload and injects it in the
+// entry itself.
+func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	ts, ok := entry.Data["time"].(string)
+	if !ok {
+		return nil, errors.New("no time in the log entry")
+	}
+	t, err := dateparse.ParseAny(ts)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing datetime")
+	}
+	e := &logrus.Entry{
+		Logger:  entry.Logger,
+		Time:    t,
+		Level:   entry.Level,
+		Message: entry.Message,
+		Buffer:  entry.Buffer,
+	}
+	delete(entry.Data, "time")
+	e.Data = entry.Data
+	return f.TextFormatter.Format(e)
+}
+
+func (p *Plain) Read(b []byte) (int, error) {
 	if p.Timestamp.Equal(time.Time{}) {
 		p.Logger.Error(ErrNilTimestamp)
 		return 0, ErrNilTimestamp
@@ -63,24 +94,24 @@ func (p *Plain) Read(b []byte) (int, error) {
 	}
 
 	p.once.Do(func() {
-		t := p.Timestamp.Format(TimestampFormat)
-		l := 6 + len(p.Kind) + len(p.Message) + len(t)
-		buf := bytes.NewBuffer(make([]byte, l))
-		buf.Reset()
+		logger := logrus.New()
+		customFormatter := new(TextFormatter)
+		customFormatter.DisableColors = true
+		logger.Formatter = customFormatter
 
-		inputs := []string{
-			"[",
-			t,
-			"] [",
-			strings.ToUpper(p.Kind),
-			"] ",
-			p.Message,
-		}
-		for _, in := range inputs {
-			nn, _ := buf.WriteString(in)
-			n += nn
+		buf := new(bytes.Buffer)
+		logger.Out = buf
+		ll := logger.WithField("time", p.Timestamp.Format(TimestampFormat))
+		switch p.Kind {
+		case INFO:
+			ll.Info(p.Message)
+		case WARN:
+			ll.Warn(p.Message)
+		case ERROR:
+			ll.Error(p.Message)
 		}
 		p.compiled = buf.Bytes()
+
 	})
 
 	end := len(p.compiled)
