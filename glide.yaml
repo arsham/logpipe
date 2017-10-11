@@ -8,9 +8,11 @@ import:
   subpackages:
   - ssh/terminal
 - package: github.com/araddon/dateparse
-- package: github.com/namsral/flag
-  version: master
 - package: github.com/sirupsen/logrus
+  version: master
+- package: github.com/spf13/viper
+  version: master
+- package: github.com/jessevdk/go-flags
   version: master
 testImport:
 - package: github.com/onsi/ginkgo

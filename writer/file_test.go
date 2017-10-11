@@ -314,8 +314,7 @@ func TestWriteOnClosedFile(t *testing.T) {
 	}
 
 	message := []byte("this is the message")
-	file.Write(message)
-	err = file.Flush()
+	_, err = file.Write(message)
 	if err == nil {
 		t.Error("want (error), got nil")
 	}
@@ -342,6 +341,10 @@ func TestWithLogger(t *testing.T) {
 	logger := internal.DiscardLogger()
 	if err := writer.WithLogger(logger)(file); err != nil {
 		t.Errorf("want (nil), got (%v)", err)
+	}
+
+	if file.Logger() != logger {
+		t.Errorf("want file.logger to be (%v), got (%v)", logger, file.Logger())
 	}
 }
 

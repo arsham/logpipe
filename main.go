@@ -5,47 +5,72 @@
 package main
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/arsham/logpipe/handler"
 	"github.com/arsham/logpipe/internal"
+	"github.com/arsham/logpipe/internal/config"
 	"github.com/arsham/logpipe/writer"
-	"github.com/namsral/flag"
+	flags "github.com/jessevdk/go-flags"
 )
 
-var (
-	port     = flag.Int("port", 8080, "port to listen to")
-	logfile  = flag.String("logfile", "", "log file to write to")
-	logLevel = flag.String("log", "error", "log level")
-)
+var opts struct {
+	ConfigFile string `short:"c" long:"config-file" env:"CONFIGFILE" description:"configuration file" required:"true"`
+	LogLevel   string `short:"l" long:"log-level" default:"error" description:"application log level"`
+	Port       int    `short:"p" long:"port" default:"8080" env:"PORT" description:"port to listen for incoming payload"`
+}
 
 // this main function is fully covered in the main_test.go file and is excluded
 // from coveralls statistics.
 func main() {
-	flag.Parse()
-	if *logfile == "" {
-		log.Fatal("need log file")
-	}
-	logger := internal.GetLogger(*logLevel)
-
-	w, err := writer.NewFile(
-		writer.WithFileLoc(*logfile),
-		writer.WithLogger(logger),
-	)
+	_, err := flags.Parse(&opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	logger := internal.GetLogger(opts.LogLevel)
+	s, err := config.Read(opts.ConfigFile)
+	if err != nil {
+		logger.Fatal(err, opts.ConfigFile)
+	}
+
+	var (
+		fileLocation string
+		ok           bool
+		writers      []io.Writer
+	)
+
+LOOP:
+	for _, conf := range s.Writers {
+
+		switch mod := conf["type"]; mod {
+		case "file":
+			if fileLocation, ok = conf["location"]; !ok {
+				logger.Warn(s.Writers)
+				continue LOOP
+			}
+			w, err := writer.NewFile(
+				writer.WithFileLoc(fileLocation),
+				writer.WithLogger(logger),
+			)
+			if err != nil {
+				logger.Fatal(err)
+			}
+			writers = append(writers, w)
+		}
+	}
+
 	server := handler.Service{
-		Writer: w,
-		Logger: logger,
+		Writers: writers,
+		Logger:  logger,
 	}
 
 	http.HandleFunc("/", server.RecieveHandler)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*port), nil))
+	logger.Fatal(http.ListenAndServe(":"+strconv.Itoa(opts.Port), nil))
 }

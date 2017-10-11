@@ -12,36 +12,33 @@ import (
 	"github.com/arsham/logpipe/writer"
 )
 
-func BenchmarkSlimShortFileWrites(b *testing.B) {
-	benchmarkFileWrites(b, 100, 10000)
-}
+func BenchmarkFileWrites(b *testing.B) {
+	tc := []struct {
+		name     string
+		col, row int
+	}{
+		{"Slim Short", 100, 10000},
+		{"Fat Short", 100 * 100, 10000},
+		{"Slim Tall", 100, 10000 * 10},
+		{"Fat Tall", 100 * 100, 10000 * 10},
+		{"Fat Very Tall", 100 * 100, 10000 * 100},
+	}
 
-func BenchmarkFatShortFileWrites(b *testing.B) {
-	benchmarkFileWrites(b, 100*100, 10000)
-}
+	for _, t := range tc {
+		b.Run(t.name, func(b *testing.B) {
+			rowString := bytes.Repeat([]byte("a"), t.col)
+			for n := 0; n < b.N; n++ {
+				fl, err := writer.NewFile(writer.WithFileLoc(os.DevNull))
+				defer fl.Flush()
 
-func BenchmarkSlimTallFileWrites(b *testing.B) {
-	benchmarkFileWrites(b, 100, 10000*10)
-}
+				if err != nil {
+					panic(err)
+				}
 
-func BenchmarkFatTallFileWrites(b *testing.B) {
-	benchmarkFileWrites(b, 100*100, 10000*10)
-}
-
-func BenchmarkFatVeryTallFileWrites(b *testing.B) {
-	benchmarkFileWrites(b, 100*100, 10000*100)
-}
-
-func benchmarkFileWrites(b *testing.B, col, row int) {
-	rowString := bytes.Repeat([]byte("a"), col)
-	for n := 0; n < b.N; n++ {
-		fl, err := writer.NewFile(writer.WithFileLoc(os.DevNull))
-		defer fl.Flush()
-		if err != nil {
-			panic(err)
-		}
-		for i := 0; i < row; i++ {
-			fl.Write(rowString)
-		}
+				for i := 0; i < t.row; i++ {
+					fl.Write(rowString)
+				}
+			}
+		})
 	}
 }
