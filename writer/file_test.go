@@ -6,6 +6,7 @@ package writer_test
 
 import (
 	"bufio"
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/writer"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -186,6 +188,35 @@ var _ = Describe("File", func() {
 					Entry("20", 20),
 				)
 			})
+
+			Describe("new lines", func() {
+				Context("having a log entry without trailing new line", func() {
+					It("should append a new line", func() {
+						n, err := file.Write(line1)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(n).To(Equal(len(line1)))
+						file.Flush()
+						content, _ := ioutil.ReadAll(f)
+						Expect(content).To(ContainSubstring(string('\n')))
+					})
+				})
+				Context("having a log entry with trailing new line", func() {
+					It("should not append a new line", func() {
+						buf := new(bytes.Buffer)
+						buf.WriteString("sdsdsd")
+						buf.WriteByte('\n')
+						line1 = buf.Bytes()
+						n, err := file.Write(line1)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(n).To(Equal(len(line1)))
+						file.Flush()
+						content, _ := ioutil.ReadAll(f)
+						c := bytes.Count(content, []byte("\n"))
+						Expect(c).To(Equal(1))
+
+					})
+				})
+			})
 		})
 
 		Context("appending to an existing log file", func() {
@@ -306,6 +337,11 @@ func TestWithLogger(t *testing.T) {
 	file := &writer.File{}
 	if err := writer.WithLogger(nil)(file); err == nil {
 		t.Error("want error, got nil")
+	}
+
+	logger := internal.DiscardLogger()
+	if err := writer.WithLogger(logger)(file); err != nil {
+		t.Errorf("want (nil), got (%v)", err)
 	}
 }
 

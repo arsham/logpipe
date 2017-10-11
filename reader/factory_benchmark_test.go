@@ -18,7 +18,7 @@ func BenchmarkGetReaderPlain(b *testing.B) {
 }
 
 func BenchmarkGetReaderPlainMedium(b *testing.B) {
-	benchmarkGetReaderPlain(b, "adkjh kjhasdkjh kjhkjahsd", "12:01:10", 100)
+	benchmarkGetReaderPlain(b, "adkjh kjhasdkjh kjhkjahsd", "2013-01-10", 100)
 }
 
 func BenchmarkGetReaderPlainLarge(b *testing.B) {

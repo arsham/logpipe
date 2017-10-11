@@ -17,6 +17,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 )
 
@@ -28,8 +29,8 @@ var _ = Describe("Plain", func() {
 
 	BeforeEach(func() {
 		logger, hook = test.NewNullLogger()
-
 	})
+
 	AfterEach(func() {
 		hook.Reset()
 	})
@@ -105,10 +106,15 @@ var _ = Describe("Plain", func() {
 				var (
 					rp      *reader.Plain
 					kind    string
-					message = strings.Repeat("this is a long message", 150)
+					message = strings.Repeat("this is a long message ", 150)
 					now     = time.Now()
 					nowStr  = now.Format(reader.TimestampFormat)
+					format  = `time="%s" level=%s msg="%s"`
 				)
+				b := new(bytes.Buffer)
+				b.WriteString(format)
+				b.WriteByte('\n')
+				format = b.String()
 
 				JustBeforeEach(func() {
 					rp = &reader.Plain{
@@ -129,8 +135,8 @@ var _ = Describe("Plain", func() {
 					)
 
 					BeforeEach(func() {
-						expected = fmt.Sprintf("[%s] [%s] %s", nowStr, "ERROR", message)
-						kind = "error"
+						expected = fmt.Sprintf(format, nowStr, reader.ERROR, message)
+						kind = reader.ERROR
 						b = make([]byte, len(expected))
 					})
 					It("should not error or return io.EOF", func() {
@@ -151,8 +157,8 @@ var _ = Describe("Plain", func() {
 					)
 
 					BeforeEach(func() {
-						expected = fmt.Sprintf("[%s] [%s] %s", nowStr, "ERROR", message)
-						kind = "error"
+						expected = fmt.Sprintf(format, nowStr, reader.WARN, message)
+						kind = reader.WARN
 						buf = &bytes.Buffer{}
 					})
 					It("should not error or return io.EOF", func() {
@@ -171,8 +177,8 @@ var _ = Describe("Plain", func() {
 					var expected string
 
 					BeforeEach(func() {
-						expected = fmt.Sprintf("[%s] [%s] %s", nowStr, "ERROR", message)
-						kind = "error"
+						expected = fmt.Sprintf(format, nowStr, reader.INFO, message)
+						kind = reader.INFO
 					})
 					It("should not error or return io.EOF", func() {
 						_, err := ioutil.ReadAll(rp)
@@ -180,10 +186,99 @@ var _ = Describe("Plain", func() {
 					})
 					Specify("length and return value to be as expected", func() {
 						b, _ := ioutil.ReadAll(rp)
+						Expect(string(b)).To(BeEquivalentTo(expected))
 						Expect(len(b)).To(Equal(len(expected)))
-						Expect(b).To(BeEquivalentTo(expected))
 					})
 				})
+			})
+		})
+	})
+})
+
+var _ = Describe("TextFormatter", func() {
+	Describe("Format", func() {
+		var (
+			t         time.Time
+			timeStr   string
+			entry     logrus.Entry
+			formatter *reader.TextFormatter
+		)
+		JustBeforeEach(func() {
+			data := logrus.Fields{
+				"msg":   "this is a message",
+				"level": "error",
+				"time":  timeStr,
+			}
+			entry = logrus.Entry{
+				Logger:  internal.DiscardLogger().Logger,
+				Time:    t,
+				Level:   internal.WarnLevel,
+				Message: "this is a message",
+				Data:    data,
+			}
+			formatter = new(reader.TextFormatter)
+			formatter.DisableColors = true
+		})
+		AfterEach(func() {
+			timeStr = ""
+		})
+
+		Context("having an entry without a timestamp", func() {
+			var (
+				b   []byte
+				err error
+			)
+			BeforeEach(func() {
+				t = time.Time{}
+			})
+			JustBeforeEach(func() {
+				b, err = formatter.Format(&entry)
+			})
+
+			It("should return error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(b).To(BeEmpty())
+			})
+		})
+
+		Context("having Data without the time key", func() {
+			var (
+				b   []byte
+				err error
+			)
+
+			JustBeforeEach(func() {
+				delete(entry.Data, "time")
+				b, err = formatter.Format(&entry)
+			})
+
+			It("should return error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(b).To(BeEmpty())
+			})
+		})
+
+		Context("having a ready to use entry", func() {
+			var (
+				b   []byte
+				err error
+			)
+			BeforeEach(func() {
+				t = time.Now()
+				timeStr = t.Format(reader.TimestampFormat)
+			})
+			JustBeforeEach(func() {
+				b, err = formatter.Format(&entry)
+			})
+
+			It("should not return error", func() {
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("should remove the time from its Data slice", func() {
+				Expect(entry.Data).NotTo(HaveKey("time"))
+			})
+			Specify("the time should appear at the beginning of the line", func() {
+				Expect(string(b)).To(HavePrefix("time="))
 			})
 		})
 	})

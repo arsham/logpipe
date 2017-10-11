@@ -9,7 +9,7 @@ import:
   - ssh/terminal
 - package: github.com/araddon/dateparse
 - package: github.com/namsral/flag
-  version: v1.7.4-pre
+  version: master
 - package: github.com/sirupsen/logrus
   version: master
 testImport:
