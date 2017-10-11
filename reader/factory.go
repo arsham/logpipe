@@ -16,7 +16,11 @@ import (
 
 const (
 	// INFO is a log level.
-	INFO = "INFO"
+	INFO = "info"
+	// ERROR is a log level.
+	ERROR = "error"
+	// WARN is a log level.
+	WARN = "warning"
 )
 
 // GetReader tries to guess an appropriate reader from the input byte slice

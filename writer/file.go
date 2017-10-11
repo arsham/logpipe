@@ -6,6 +6,7 @@ package writer
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -81,9 +82,12 @@ func (f *File) Write(p []byte) (int, error) {
 		return n1, errors.Wrap(err, "writing the bytes")
 	}
 
-	n2, err := f.buf.Write([]byte("\n")) // required for creating a new line
+	if !bytes.HasSuffix(p, []byte("\n")) {
+		err = f.buf.WriteByte('\n') // required for creating a new line
+	}
+
 	if err != nil {
-		return n2, errors.Wrap(err, "writing new line")
+		return 0, errors.Wrap(err, "writing new line")
 	}
 	return n1, nil
 }
