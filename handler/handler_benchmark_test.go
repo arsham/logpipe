@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -20,53 +21,61 @@ import (
 )
 
 func BenchmarkHandler(b *testing.B) {
-	benchmarkHandler(b, 10)
-}
-
-func BenchmarkHandlerMedium(b *testing.B) {
-	benchmarkHandler(b, 100)
-}
-
-func BenchmarkHandlerLarge(b *testing.B) {
-	benchmarkHandler(b, 1000)
-}
-
-func benchmarkHandler(b *testing.B, msgLen int) {
-	b.StopTimer()
-
-	f, err := ioutil.TempFile("", "testing")
-	if err != nil {
-		b.Fatal(err)
+	tc := []struct {
+		name         string
+		wLen, msgLen int
+	}{
+		{"Small", 1, 10},
+		{"Medium", 1, 100},
+		{"Large", 1, 1000},
 	}
-	file, err := writer.NewFile(
-		writer.WithWriter(f),
-	)
-	if err != nil {
-		b.Fatal(err)
-	}
-	s := &handler.Service{Writer: file}
+	for _, t := range tc {
+		b.Run(t.name, func(b *testing.B) {
+			b.StopTimer()
 
-	handler := http.HandlerFunc(s.RecieveHandler)
-	ts := httptest.NewServer(handler)
-	defer ts.Close()
+			s := &handler.Service{}
 
-	errMsg := strings.Repeat("afadf", msgLen)
-	message := fmt.Sprintf(`{"type":"error","message":"%s","timestamp":"%s"}`,
-		errMsg,
-		time.Now().Format(reader.TimestampFormat),
-	)
+			for i := 0; i < t.wLen; i++ {
+				f, err := ioutil.TempFile("", "testing_bechmark")
+				if err != nil {
+					b.Fatal(err)
+				}
+				defer func() {
+					os.Remove(f.Name())
+				}()
+				file, err := writer.NewFile(
+					writer.WithWriter(f),
+				)
+				if err != nil {
+					b.Fatal(err)
+				}
+				s.Writers = append(s.Writers, file)
+			}
 
-	req, err := http.NewRequest("POST", ts.URL, bytes.NewBuffer([]byte(message)))
-	if err != nil {
-		b.Fatal(err)
-	}
+			handler := http.HandlerFunc(s.RecieveHandler)
+			ts := httptest.NewServer(handler)
+			defer ts.Close()
 
-	client := &http.Client{}
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		_, err = client.Do(req)
-		if err != nil {
-			b.Fatal(err)
-		}
+			errMsg := strings.Repeat("afadf", t.msgLen)
+			message := fmt.Sprintf(`{"type":"error","message":"%s","timestamp":"%s"}`,
+				errMsg,
+				time.Now().Format(reader.TimestampFormat),
+			)
+
+			req, err := http.NewRequest("POST", ts.URL, bytes.NewBuffer([]byte(message)))
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			client := &http.Client{}
+			b.StartTimer()
+
+			for i := 0; i < b.N; i++ {
+				_, err = client.Do(req)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

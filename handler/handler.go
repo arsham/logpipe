@@ -24,8 +24,32 @@ import (
 // Service listens to the incoming http requests and decides how to route
 // the payload to be written.
 type Service struct {
-	Writer io.Writer
-	Logger internal.FieldLogger
+	Writers []io.Writer
+	Logger  internal.FieldLogger
+}
+
+// New returns an error if there is no logger or no writer specified.
+func New(opts ...func(*Service) error) (*Service, error) {
+	if opts == nil {
+		return nil, ErrNoOptions
+	}
+	s := &Service{}
+	for _, f := range opts {
+		err := f(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if s.Logger == nil {
+		return nil, ErrNoLogger
+	}
+
+	if len(s.Writers) == 0 {
+		return nil, ErrNoWriter
+	}
+
+	return s, nil
 }
 
 func (l *Service) writeError(w http.ResponseWriter, err error, status int) {
@@ -34,34 +58,62 @@ func (l *Service) writeError(w http.ResponseWriter, err error, status int) {
 	l.Logger.Error(err)
 }
 
-// RecieveHandler handles the logs coming from the endpoint
+// RecieveHandler handles the logs coming from the endpoint.
+// It handles all writes in their own goroutine in order to avoid write loss.
 func (l *Service) RecieveHandler(w http.ResponseWriter, r *http.Request) {
 	buf := bytes.Buffer{}
 	red := io.TeeReader(r.Body, &buf)
 	j, err := jason.NewFromReader(red)
 	if err != nil {
-		l.writeError(w, errors.Wrap(err, "corrupted json"), http.StatusBadRequest)
+		l.writeError(w, errors.Wrap(err, ErrCorruptedJSON.Error()), http.StatusBadRequest)
 		return
 	}
 
 	if m, err := j.Map(); err != nil {
-		l.writeError(w, errors.Wrap(err, "getting map"), http.StatusBadRequest)
+		l.writeError(w, errors.Wrap(err, ErrGettingMap.Error()), http.StatusBadRequest)
 		return
 	} else if len(m) == 0 {
-		l.writeError(w, errors.New("empty object"), http.StatusBadRequest)
+		l.writeError(w, ErrEmptyObject, http.StatusBadRequest)
 		return
 	}
 
 	rd, err := reader.GetReader(buf.Bytes(), l.Logger)
 	if err != nil {
-		l.writeError(w, errors.New("getting reader"), http.StatusBadRequest)
+		l.writeError(w, ErrGettingReader, http.StatusBadRequest)
 		return
 	}
 
-	_, err = io.Copy(l.Writer, rd)
+	wr := io.MultiWriter(l.Writers...)
+	_, err = io.Copy(wr, rd)
 	if err != nil {
-		l.writeError(w, errors.Wrap(err, "writing to file"), http.StatusBadRequest)
-		return
+		l.Logger.Error(errors.Wrap(err, ErrWritingEntry.Error()))
 	}
+
 	w.WriteHeader(http.StatusOK)
+}
+
+// WithWriters will return an error if two identical writers are injected.
+func WithWriters(ws ...io.Writer) func(*Service) error {
+	return func(s *Service) error {
+		for _, w := range ws {
+			for _, ew := range s.Writers {
+				if ew == w {
+					return ErrDuplicateWriter
+				}
+			}
+			s.Writers = append(s.Writers, w)
+		}
+		return nil
+	}
+}
+
+// WithLogger will return an error if the logger is nil
+func WithLogger(logger internal.FieldLogger) func(*Service) error {
+	return func(s *Service) error {
+		if logger == nil {
+			return ErrNilLogger
+		}
+		s.Logger = logger
+		return nil
+	}
 }

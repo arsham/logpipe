@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/arsham/logpipe/internal"
@@ -33,6 +34,8 @@ type File struct {
 
 	sync.Mutex // guards against the buffer
 	buf        *bufio.Writer
+
+	closed uint32
 
 	delay  time.Duration // the delay between flushes
 	logger internal.FieldLogger
@@ -63,6 +66,8 @@ func (f *File) Close() error {
 	if err := f.Flush(); err != nil {
 		return errors.Wrap(err, "flushing on close")
 	}
+
+	atomic.StoreUint32(&f.closed, uint32(1))
 	return f.file.Close()
 }
 
@@ -76,6 +81,10 @@ func (f *File) Name() string {
 func (f *File) Write(p []byte) (int, error) {
 	f.Lock()
 	defer f.Unlock()
+
+	if atomic.LoadUint32(&f.closed) > 0 {
+		return 0, errors.New("file closed")
+	}
 
 	n1, err := f.buf.Write(p)
 	if err != nil {
@@ -107,6 +116,11 @@ func (f *File) sync() {
 		f.buf.Flush()
 		f.Unlock()
 	}
+}
+
+// Logger returns the logger attached to the file
+func (f *File) Logger() internal.FieldLogger {
+	return f.logger
 }
 
 // WithFileLoc opens a new file at location, or creates one if not exists.

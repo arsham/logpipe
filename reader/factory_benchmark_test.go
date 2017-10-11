@@ -14,32 +14,35 @@ import (
 )
 
 func BenchmarkGetReaderPlain(b *testing.B) {
-	benchmarkGetReaderPlain(b, "aksh d", "2017-01-02", 10)
-}
+	tc := []struct {
+		name           string
+		msg, timestamp string
+		length         int
+	}{
+		{"Small", "aksh d", "2017-01-02", 10},
+		{"Medium", "adkjh kjhasdkjh kjhkjahsd", "2013-01-10", 100},
+		{"Large", "sdsd sddkkf j", "2017-01-02 19:00:22", 1000},
+	}
 
-func BenchmarkGetReaderPlainMedium(b *testing.B) {
-	benchmarkGetReaderPlain(b, "adkjh kjhasdkjh kjhkjahsd", "2013-01-10", 100)
-}
+	for _, t := range tc {
+		b.Run(t.name, func(b *testing.B) {
+			b.StopTimer()
+			logger := internal.DiscardLogger()
+			input := []byte(
+				fmt.Sprintf(
+					`{"type":"error","message":"%s","timestamp":"%s"}`,
+					strings.Repeat(t.msg, t.length),
+					t.timestamp,
+				),
+			)
+			b.StartTimer()
 
-func BenchmarkGetReaderPlainLarge(b *testing.B) {
-	benchmarkGetReaderPlain(b, "sdsd sddkkf j", "2017-01-02 19:00:22", 1000)
-}
-
-func benchmarkGetReaderPlain(b *testing.B, msg, timestamp string, length int) {
-	b.StopTimer()
-	logger := internal.DiscardLogger()
-	input := []byte(
-		fmt.Sprintf(
-			`{"type":"error","message":"%s","timestamp":"%s"}`,
-			strings.Repeat(msg, length),
-			timestamp,
-		),
-	)
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := reader.GetReader(input, logger)
-		if err != nil {
-			b.Error(err)
-		}
+			for i := 0; i < b.N; i++ {
+				_, err := reader.GetReader(input, logger)
+				if err != nil {
+					b.Error(err)
+				}
+			}
+		})
 	}
 }
