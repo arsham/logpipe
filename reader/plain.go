@@ -40,8 +40,7 @@ type Plain struct {
 	Logger    internal.FieldLogger
 
 	once     sync.Once
-	compiled []byte
-	current  int //current position on reading the message
+	compiled io.Reader
 }
 
 // TextFormatter is used for rendering a custom format. We need to put the time
@@ -89,10 +88,6 @@ func (p *Plain) Read(b []byte) (int, error) {
 		p.Kind = INFO
 	}
 
-	if len(p.compiled) > 0 && p.current >= len(p.compiled) {
-		return 0, io.EOF
-	}
-
 	p.once.Do(func() {
 		logger := logrus.New()
 		customFormatter := new(TextFormatter)
@@ -110,18 +105,9 @@ func (p *Plain) Read(b []byte) (int, error) {
 		case ERROR:
 			ll.Error(p.Message)
 		}
-		p.compiled = buf.Bytes()
+		p.compiled = buf
 
 	})
 
-	end := len(p.compiled)
-	if end > len(b) {
-		end = len(b) + p.current
-		if end > len(p.compiled) {
-			end = len(p.compiled)
-		}
-	}
-	cnt := copy(b, p.compiled[p.current:end])
-	p.current += cnt
-	return cnt, nil
+	return p.compiled.Read(b)
 }

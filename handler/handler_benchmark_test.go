@@ -29,6 +29,7 @@ func BenchmarkHandler(b *testing.B) {
 		{"Medium", 1, 100},
 		{"Large", 1, 1000},
 	}
+
 	for _, t := range tc {
 		b.Run(t.name, func(b *testing.B) {
 			b.StopTimer()
@@ -56,7 +57,7 @@ func BenchmarkHandler(b *testing.B) {
 			ts := httptest.NewServer(handler)
 			defer ts.Close()
 
-			errMsg := strings.Repeat("afadf", t.msgLen)
+			errMsg := strings.Repeat("afadf ", t.msgLen)
 			message := fmt.Sprintf(`{"type":"error","message":"%s","timestamp":"%s"}`,
 				errMsg,
 				time.Now().Format(reader.TimestampFormat),
