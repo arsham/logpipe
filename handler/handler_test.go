@@ -348,6 +348,17 @@ var _ = Describe("Handler", func() {
 
 					}, flushDelay+5*time.Second, 0.2).Should(ContainSubstring(errMsg))
 				})
+
+				It("should eventually write the log level", func() {
+					Eventually(func() string {
+
+						Expect(file1.Flush()).NotTo(HaveOccurred())
+						content, err := ioutil.ReadFile(file1.Name())
+						Expect(err).NotTo(HaveOccurred())
+						return string(content)
+
+					}, flushDelay+5*time.Second, 0.2).Should(ContainSubstring(kind))
+				})
 			})
 
 			Context("handling plain logs and writing to multiple files", func() {
@@ -462,68 +473,56 @@ var _ = Describe("Handler", func() {
 					req.Header.Set("Content-Type", "application/json")
 					h.ServeHTTP(rec, req)
 
+					close(done)
+
+				}, flushDelay.Seconds()) // This request should not take as long as the slow writer
+
+				AfterEach(func() {
+					hook.Reset()
+					os.Remove(file3.Name())
+				})
+
+				It("should write the log entry to the fast writers", func(done Done) {
+
 					Eventually(func() string {
 						Expect(file1.Flush()).NotTo(HaveOccurred())
 						content1, err = ioutil.ReadFile(file1.Name())
 						Expect(err).NotTo(HaveOccurred())
 						return string(content1)
-					}, delay).Should(Not(BeEmpty()))
+					}, flushDelay).Should(Not(BeEmpty()))
 
 					Eventually(func() string {
 						Expect(file2.Flush()).NotTo(HaveOccurred())
 						content2, err = ioutil.ReadFile(file2.Name())
 						Expect(err).NotTo(HaveOccurred())
 						return string(content2)
-					}, delay).Should(Not(BeEmpty()))
+					}, flushDelay).Should(Not(BeEmpty()))
+
+					Expect(string(content1)).To(ContainSubstring(errMsg))
+					Expect(string(content2)).To(ContainSubstring(errMsg))
 
 					close(done)
-				}, delay.Seconds()+1)
 
-				AfterEach(func() {
-					hook.Reset()
-					file3.Close()
-					os.Remove(file3.Name())
-				})
+				}, flushDelay.Seconds()+1)
 
-				It("should write the log entry to the fast writers and eventually slow one", func(done Done) {
-					fast := make(chan struct{})
-					slow := make(chan struct{})
-
-					go func() {
-
-						Expect(string(content1)).To(ContainSubstring(errMsg))
-						Expect(string(content2)).To(ContainSubstring(errMsg))
-
-						if hook.LastEntry() != nil {
-							Expect(hook.LastEntry().Message).NotTo(ContainSubstring(handler.ErrWritingEntry.Error()))
-						}
-						close(fast)
-					}()
-
-					go func() {
-
-						Eventually(func() string {
-							content3, err = ioutil.ReadFile(file3.Name())
-							Expect(err).NotTo(HaveOccurred())
-							return string(content3)
-						}, delay+1).Should(ContainSubstring(errMsg))
-
-						if hook.LastEntry() != nil {
-							Expect(hook.LastEntry().Message).NotTo(ContainSubstring(handler.ErrWritingEntry.Error()))
-						}
-						close(slow)
-					}()
-
-					for {
-						select {
-						case <-slow:
-							close(done)
-						case <-fast:
-						}
+				It("should eventually write the log entry to the slow one", func(done Done) {
+					if hook.LastEntry() != nil {
+						Expect(hook.LastEntry().Message).NotTo(ContainSubstring(handler.ErrWritingEntry.Error()))
 					}
 
-				}, delay.Seconds()+1)
+					Eventually(func() string {
+						content3, err = ioutil.ReadFile(file3.Name())
+						Expect(err).NotTo(HaveOccurred())
+						return string(content3)
+					}, delay*2).Should(ContainSubstring(errMsg))
 
+					if hook.LastEntry() != nil {
+						Expect(hook.LastEntry().Message).NotTo(ContainSubstring(handler.ErrWritingEntry.Error()))
+					}
+
+					close(done)
+
+				}, delay.Seconds()+1)
 			})
 		})
 	})

@@ -181,11 +181,11 @@ var _ = Describe("File", func() {
 					}
 					Expect(counter).To(Equal(n))
 				},
-					Entry("0", 0),
-					Entry("1", 1),
-					Entry("2", 2),
-					Entry("10", 10),
-					Entry("20", 20),
+					Entry("0 lines", 0),
+					Entry("1 lines", 1),
+					Entry("2 lines", 2),
+					Entry("10 lines", 10),
+					Entry("20 lines", 20),
 				)
 			})
 
@@ -289,8 +289,16 @@ func TestWriteErrors(t *testing.T) {
 		},
 	}
 
+	// testing when the writer errors back
+	file, _ := writer.NewFile(writer.WithBufWriter(bufio.NewWriter(f)))
+	str := strings.Repeat("A long text ", 400) // to trigger the WriteFunc method
+	if _, err := file.Write([]byte(str)); errors.Cause(err) != e {
+		t.Errorf("want (%s), got(%v)", e, err)
+	}
+
+	// for testing the new line entry we need a small buffer
 	buf := bufio.NewWriterSize(f, 2)
-	file, _ := writer.NewFile(writer.WithBufWriter(buf))
+	file, _ = writer.NewFile(writer.WithBufWriter(buf))
 
 	if _, err := file.Write([]byte("dd")); errors.Cause(err) != e {
 		t.Errorf("want (%s), got(%v)", e, err)

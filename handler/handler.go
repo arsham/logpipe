@@ -61,13 +61,14 @@ func (l *Service) writeError(w http.ResponseWriter, err error, status int) {
 // RecieveHandler handles the logs coming from the endpoint.
 // It handles all writes in their own goroutine in order to avoid write loss.
 func (l *Service) RecieveHandler(w http.ResponseWriter, r *http.Request) {
-	buf := bytes.Buffer{}
-	red := io.TeeReader(r.Body, &buf)
+	buf := new(bytes.Buffer)
+	red := io.TeeReader(r.Body, buf)
 	j, err := jason.NewFromReader(red)
 	if err != nil {
 		l.writeError(w, errors.Wrap(err, ErrCorruptedJSON.Error()), http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
 
 	if m, err := j.Map(); err != nil {
 		l.writeError(w, errors.Wrap(err, ErrGettingMap.Error()), http.StatusBadRequest)
@@ -83,10 +84,38 @@ func (l *Service) RecieveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wr := io.MultiWriter(l.Writers...)
-	_, err = io.Copy(wr, rd)
-	if err != nil {
-		l.Logger.Error(errors.Wrap(err, ErrWritingEntry.Error()))
+	// allWriters := make([]io.Writer, len(l.Writers))
+	// for i, theWriter := range l.Writers {
+	// 	pipeReader, pipeWriter := io.Pipe()
+	// 	allWriters[i] = pipeWriter
+	// 	go func(theWriter io.Writer, pipeWriter io.WriteCloser, pipeReader io.ReadCloser) {
+	// 		_, err = io.Copy(theWriter, pipeReader)
+	// 		if err != nil {
+	// 			l.Logger.Error(errors.Wrap(err, ErrWritingEntry.Error()))
+	// 		}
+	// 		pipeWriter.Close()
+	// 		pipeReader.Close()
+	// 	}(theWriter, pipeWriter, pipeReader)
+	// }
+
+	// go func() {
+	// 	wr := io.MultiWriter(allWriters...)
+	// 	_, err = io.Copy(wr, rd)
+	// 	if err != nil {
+	// 		l.Logger.Error(errors.Wrap(err, ErrWritingEntry.Error()))
+	// 	}
+	// }()
+
+	buf = new(bytes.Buffer)
+	buf.ReadFrom(rd)
+	b := buf.Bytes()
+	for _, wr := range l.Writers[:] {
+		go func(wr io.Writer, b []byte) {
+			_, err = wr.Write(b)
+			if err != nil {
+				l.Logger.Error(errors.Wrap(err, ErrWritingEntry.Error()))
+			}
+		}(wr, b[:])
 	}
 
 	w.WriteHeader(http.StatusOK)

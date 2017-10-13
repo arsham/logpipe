@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+
 	"strconv"
 
 	"github.com/arsham/logpipe/handler"
@@ -19,7 +20,7 @@ import (
 
 var opts struct {
 	ConfigFile string `short:"c" long:"config-file" env:"CONFIGFILE" description:"configuration file" required:"true"`
-	LogLevel   string `short:"l" long:"log-level" default:"error" description:"application log level"`
+	LogLevel   string `short:"l" long:"log-level" env:"LOGLEVEL" default:"error" description:"application log level"`
 	Port       int    `short:"p" long:"port" default:"8080" env:"PORT" description:"port to listen for incoming payload"`
 }
 
@@ -36,6 +37,9 @@ func main() {
 	if err != nil {
 		logger.Fatal(err, opts.ConfigFile)
 	}
+
+	logger.Infof("running on port: %d", opts.Port)
+	logger.Infof("config file: %s", opts.ConfigFile)
 
 	var (
 		fileLocation string

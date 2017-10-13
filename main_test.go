@@ -14,7 +14,9 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/arsham/logpipe/reader"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
@@ -108,6 +110,7 @@ writers:
 		Context("having port set in the environment", func() {
 			BeforeEach(func() {
 				envAdd = func(env []string) []string {
+					env = append(env, fmt.Sprintf("LOGLEVEL=info"))
 					env = append(env, fmt.Sprintf("PORT=%d", port))
 					env = append(env, fmt.Sprintf("CONFIGFILE=%s", configFile))
 					return env
@@ -130,6 +133,14 @@ writers:
 					return err
 				}, 0.4, 0.1).ShouldNot(HaveOccurred())
 
+			})
+
+			It("running the application should report the port its using", func() {
+				Eventually(session.Out).Should(gbytes.Say("running on port.*%d", port))
+			})
+
+			It("running the application should report the config file its using", func() {
+				Eventually(session.Out).Should(gbytes.Say("config file.*%s", configFile))
 			})
 		})
 	})
@@ -198,14 +209,10 @@ writers:
 
 		Context("having two file loggers in the config file", func() {
 
-			BeforeEach(func() {
-				logLevel = "debug"
-			})
-
-			JustBeforeEach(func() {
+			doRequest := func(level string) {
 				url := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 
-				req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(fmt.Sprintf(`{"message":"%s"}`, message))))
+				req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(fmt.Sprintf(`{"message":"%s","type":"%s"}`, message, level))))
 				Expect(err).NotTo(HaveOccurred())
 
 				client := &http.Client{}
@@ -213,10 +220,10 @@ writers:
 					_, err := client.Do(req)
 					return err
 				}, 0.4, 0.1).ShouldNot(HaveOccurred())
-			})
+			}
 
-			It("should write the line in both files", func() {
-
+			It("should write the line in both files", func(done Done) {
+				doRequest("info")
 				Eventually(func() string {
 					content, err := ioutil.ReadFile(filename1)
 					Expect(err).NotTo(HaveOccurred())
@@ -229,21 +236,30 @@ writers:
 					return string(content)
 				}, 2, 0.1).Should(ContainSubstring(message))
 
-			})
+				close(done)
 
-			Specify("the log level is present in the log", func() {
+			}, 2)
+
+			DescribeTable("the log level is present in the log", func(level string) {
+				doRequest(level)
+
 				Eventually(func() string {
 					content, err := ioutil.ReadFile(filename1)
 					Expect(err).NotTo(HaveOccurred())
 					return string(content)
-				}, 2, 0.1).Should(ContainSubstring(logLevel))
+				}, 2, 0.1).Should(ContainSubstring(level))
 
 				Eventually(func() string {
 					content, err := ioutil.ReadFile(filename2)
 					Expect(err).NotTo(HaveOccurred())
 					return string(content)
-				}, 2, 0.1).Should(ContainSubstring(logLevel))
-			})
+				}, 2, 0.1).Should(ContainSubstring(level))
+
+			},
+				Entry("info", reader.INFO),
+				Entry("warn", reader.WARN),
+				Entry("error", reader.ERROR),
+			)
 		})
 	})
 })

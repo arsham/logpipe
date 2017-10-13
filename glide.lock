@@ -1,5 +1,5 @@
 hash: a7b31b2bc8b6b060813f1313515c2b70f2c1c1a40dba1b0b0c5fd3f07d380055
-updated: 2017-10-12T09:49:23.662300102+01:00
+updated: 2017-10-13T18:12:09.323701857+01:00
 imports:
 - name: github.com/araddon/dateparse
   version: ca7e753bd149dae747d76fa7d52b20b920f3a814
@@ -49,12 +49,12 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/sys
-  version: ebfc5b4631820b793c9010c87fd8fef0f39eb082
+  version: 686000749eaec0b8855b8eef5336cf63899fe51d
   subpackages:
   - unix
   - windows
 - name: golang.org/x/text
-  version: 825fc78a2fd6fa0a5447e300189e3219e05e1f25
+  version: c01e4764d870b77f8abe5096ee19ad20d80e8075
   subpackages:
   - encoding
   - encoding/charmap
