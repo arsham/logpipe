@@ -5,6 +5,7 @@
 package internal
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -65,7 +66,12 @@ func GetLogger(level string) *Logger {
 // DiscardLogger returns a dummy logger.
 // This is useful for tests when you don't want to actually write to the Stdout.
 func DiscardLogger() *Logger {
+	return WithWriter(ioutil.Discard)
+}
+
+// WithWriter returns a logger that writes to w.
+func WithWriter(w io.Writer) *Logger {
 	log := logrus.New()
-	log.Out = ioutil.Discard
+	log.Out = w
 	return &Logger{log}
 }

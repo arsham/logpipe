@@ -7,17 +7,15 @@ package handler_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/arsham/logpipe/handler"
+	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/reader"
-	"github.com/arsham/logpipe/writer"
 )
 
 func BenchmarkHandler(b *testing.B) {
@@ -30,32 +28,22 @@ func BenchmarkHandler(b *testing.B) {
 		{"Large", 1, 1000},
 	}
 
+	s := &handler.Service{
+		Logger: internal.DiscardLogger(),
+	}
+
+	handler := http.HandlerFunc(s.RecieveHandler)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
 	for _, t := range tc {
 		b.Run(t.name, func(b *testing.B) {
 			b.StopTimer()
 
-			s := &handler.Service{}
-
 			for i := 0; i < t.wLen; i++ {
-				f, err := ioutil.TempFile("", "testing_bechmark")
-				if err != nil {
-					b.Fatal(err)
-				}
-				defer func() {
-					os.Remove(f.Name())
-				}()
-				file, err := writer.NewFile(
-					writer.WithWriter(f),
-				)
-				if err != nil {
-					b.Fatal(err)
-				}
-				s.Writers = append(s.Writers, file)
+				buf := new(timedWriter)
+				s.Writers = append(s.Writers, buf)
 			}
-
-			handler := http.HandlerFunc(s.RecieveHandler)
-			ts := httptest.NewServer(handler)
-			defer ts.Close()
 
 			errMsg := strings.Repeat("afadf ", t.msgLen)
 			message := fmt.Sprintf(`{"type":"error","message":"%s","timestamp":"%s"}`,
@@ -72,7 +60,7 @@ func BenchmarkHandler(b *testing.B) {
 			b.StartTimer()
 
 			for i := 0; i < b.N; i++ {
-				_, err = client.Do(req)
+				_, err := client.Do(req)
 				if err != nil {
 					b.Fatal(err)
 				}
