@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/arsham/logpipe/reader"
 	. "github.com/onsi/ginkgo"
@@ -53,8 +54,7 @@ var _ = Describe("Main", func() {
 		tcpConn, err := net.ListenTCP("tcp", addr)
 		Expect(err).ShouldNot(HaveOccurred())
 		port = tcpConn.Addr().(*net.TCPAddr).Port
-		err = tcpConn.Close()
-		Expect(err).NotTo(HaveOccurred())
+		Expect(tcpConn.Close()).NotTo(HaveOccurred())
 
 		f1, err := ioutil.TempFile("", "main_test")
 		Expect(err).NotTo(HaveOccurred())
@@ -260,6 +260,33 @@ writers:
 				Entry("warn", reader.WARN),
 				Entry("error", reader.ERROR),
 			)
+		})
+	})
+
+	Describe("shutting down", func() {
+
+		BeforeEach(func() {
+			envAdd = func(env []string) []string {
+				env = append(env, fmt.Sprintf("LOGLEVEL=info"))
+				env = append(env, fmt.Sprintf("PORT=%d", port))
+				env = append(env, fmt.Sprintf("CONFIGFILE=%s", configFile))
+				return env
+			}
+		})
+
+		AfterEach(func() {
+			envAdd = nil
+		})
+
+		Context("when sending SIGINT signal", func() {
+			Specify("the application should gracefully quit", func(done Done) {
+				time.Sleep(time.Second) // waiting for the goroutines to start up
+				session.Interrupt().Wait(time.Second * 2)
+				Eventually(session.Out).Should(gbytes.Say("shutting down the server"))
+				Eventually(session).Should(gexec.Exit(0))
+				close(done)
+			}, 10)
+			It("should print it has been exited", func() {})
 		})
 	})
 })

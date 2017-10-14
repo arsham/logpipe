@@ -37,4 +37,7 @@ var (
 
 	// ErrNoOptions is returned when no option is provided.
 	ErrNoOptions = errors.New("no option provided")
+
+	// ErrTimeout is returned when the timeout is zero.
+	ErrTimeout = errors.New("timeout cannot be zero")
 )

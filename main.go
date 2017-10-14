@@ -7,14 +7,12 @@ package main
 import (
 	"io"
 	"log"
-	"net/http"
-
-	"strconv"
+	"os"
+	"os/signal"
 
 	"github.com/arsham/logpipe/handler"
 	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/internal/config"
-	"github.com/arsham/logpipe/writer"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -25,56 +23,33 @@ var opts struct {
 }
 
 // this main function is fully covered in the main_test.go file and is excluded
-// from coveralls statistics.
+// from coverage statistics.
 func main() {
 	_, err := flags.Parse(&opts)
 	if err != nil {
 		log.Fatal(err)
 	}
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
 
 	logger := internal.GetLogger(opts.LogLevel)
-	s, err := config.Read(opts.ConfigFile)
+	logger.Infof("config file: %s", opts.ConfigFile)
+
+	c, err := config.Read(opts.ConfigFile)
 	if err != nil {
 		logger.Fatal(err, opts.ConfigFile)
 	}
 
-	logger.Infof("running on port: %d", opts.Port)
-	logger.Infof("config file: %s", opts.ConfigFile)
-
-	var (
-		fileLocation string
-		ok           bool
-		writers      []io.Writer
+	s, err := handler.New(
+		logger,
+		handler.WithConfWriters(logger, c),
 	)
-
-LOOP:
-	for _, conf := range s.Writers {
-
-		switch mod := conf["type"]; mod {
-		case "file":
-			if fileLocation, ok = conf["location"]; !ok {
-				logger.Warn(s.Writers)
-				continue LOOP
-			}
-			w, err := writer.NewFile(
-				writer.WithFileLoc(fileLocation),
-				writer.WithLogger(logger),
-			)
-			if err != nil {
-				logger.Fatal(err)
-			}
-			writers = append(writers, w)
-		}
-	}
-
-	server := handler.Service{
-		Writers: writers,
-		Logger:  logger,
-	}
-
-	http.HandleFunc("/", server.RecieveHandler)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	logger.Fatal(http.ListenAndServe(":"+strconv.Itoa(opts.Port), nil))
+	errChan := make(chan error)
+	go s.Serve(stop, errChan, opts.Port)
+	if e := <-errChan; e != io.EOF {
+		logger.Fatal(e)
+	}
 }

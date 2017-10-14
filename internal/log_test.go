@@ -5,8 +5,10 @@
 package internal_test
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/arsham/logpipe/internal"
@@ -49,5 +51,22 @@ func TestGetDiscardLogger(t *testing.T) {
 	logger := internal.DiscardLogger()
 	if logger.Out != ioutil.Discard {
 		t.Errorf("want (ioutil.Discard), got (%v)", logger.Out)
+	}
+}
+
+func TestWithWriter(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logger := internal.WithWriter(buf)
+
+	if logger.Out != buf {
+		t.Fatalf("want (bytes.Buffer), got (%v)", logger.Out)
+	}
+
+	message := "this is the message"
+	logger.Info(message)
+
+	if !strings.Contains(buf.String(), message) {
+		t.Errorf("want (%s) in the logs, got (%v)", message, buf.String())
+
 	}
 }

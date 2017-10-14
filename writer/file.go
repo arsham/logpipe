@@ -112,9 +112,7 @@ func (f *File) Flush() error {
 func (f *File) sync() {
 	for {
 		<-time.After(f.delay)
-		f.Lock()
-		f.buf.Flush()
-		f.Unlock()
+		f.Flush()
 	}
 }
 
@@ -140,7 +138,8 @@ func WithFileLoc(location string) func(*File) error {
 	}
 }
 
-// WithWriter sets the output as the given writer.
+// WithWriter sets the output as the given writer. It wraps it in a buffer
+// for better performance.
 func WithWriter(w writeCloseNamer) func(*File) error {
 	return func(f *File) error {
 		f.file = w
