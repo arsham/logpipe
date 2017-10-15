@@ -23,48 +23,52 @@ const (
 	WARN = "warning"
 )
 
-// GetReader tries to guess an appropriate reader from the input byte slice
+// GetReader tries to guess an appropriate reader from the input reader
 // and returns it. It will fall back to Plain reader.
 // It returns an error if there is no type or message are in the input or the
 // message is empty.
-func GetReader(input []byte, logger internal.FieldLogger) (io.Reader, error) {
-	j, err := jason.NewJson(input)
+func GetReader(r io.Reader, logger internal.FieldLogger) (io.Reader, error) {
+	j, err := jason.NewFromReader(r)
 	if err != nil {
-		logger.Errorf("decoding json object: %s", err)
-		return nil, errors.Wrap(err, ErrDecodeJSON.Error())
+		return nil, errors.Wrap(err, ErrCorruptedJSON.Error())
+	}
+
+	if m, err := j.Map(); err != nil {
+		return nil, errors.Wrap(err, ErrCorruptedJSON.Error())
+	} else if len(m) == 0 {
+		return nil, ErrEmptyObject
 	}
 
 	kind, err := j.Get("type").String()
 	if err != nil || kind == "" {
-		logger.Debugf("falling back to info: %s", input)
 		kind = INFO
 	}
 
 	message, err := j.Get("message").String()
-	if err != nil || message == "" {
+	if err != nil {
 		err = errors.Wrap(err, ErrEmptyMessage.Error())
-		logger.Error(err)
 		return nil, err
+	}
+
+	if message == "" {
+		return nil, ErrEmptyMessage
 	}
 
 	timestamp, err := j.Get("timestamp").String()
 	if err != nil || timestamp == "" {
-		logger.Debugf("no timestamp provided: %s", input)
 		timestamp = time.Now().Format(TimestampFormat)
 	}
 
 	t, err := dateparse.ParseAny(timestamp)
 	if err != nil {
 		err = errors.Wrap(err, ErrTimestamp.Error())
-		logger.Error(err)
 		return nil, err
 	}
 
-	r := &Plain{
+	return &Plain{
 		Message:   message,
 		Kind:      kind,
 		Timestamp: t,
 		Logger:    logger,
-	}
-	return r, nil
+	}, nil
 }

@@ -57,6 +57,8 @@ var _ = Describe("File", func() {
 
 			Context("starting the reader", func() {
 
+				By("starting from scratch")
+
 				It("should create a new file", func() {
 					os.Remove(filename)
 					file, err = writer.NewFile(

@@ -26,7 +26,6 @@ import (
 var _ = Describe("Main", func() {
 	var (
 		program    string
-		args       []string
 		port       int
 		session    *gexec.Session
 		envAdd     func([]string) []string
@@ -40,10 +39,20 @@ var _ = Describe("Main", func() {
 		var err error
 		program, err = gexec.Build("github.com/arsham/logpipe")
 		Expect(err).ShouldNot(HaveOccurred())
+		f1, err := ioutil.TempFile("", "main_test")
+		Expect(err).NotTo(HaveOccurred())
+		filename1 = f1.Name()
+
+		f2, err := ioutil.TempFile("", "main_test")
+		Expect(err).NotTo(HaveOccurred())
+		filename2 = f2.Name()
 	})
 
 	AfterSuite(func() {
 		gexec.CleanupBuildArtifacts()
+		session.Interrupt()
+		Expect(os.Remove(filename1)).NotTo(HaveOccurred())
+		Expect(os.Remove(filename2)).NotTo(HaveOccurred())
 	})
 
 	JustBeforeEach(func() {
@@ -55,14 +64,6 @@ var _ = Describe("Main", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		port = tcpConn.Addr().(*net.TCPAddr).Port
 		Expect(tcpConn.Close()).NotTo(HaveOccurred())
-
-		f1, err := ioutil.TempFile("", "main_test")
-		Expect(err).NotTo(HaveOccurred())
-		filename1 = f1.Name()
-
-		f2, err := ioutil.TempFile("", "main_test")
-		Expect(err).NotTo(HaveOccurred())
-		filename2 = f2.Name()
 
 		c, err := ioutil.TempFile("", "main_config_test")
 		Expect(err).NotTo(HaveOccurred())
@@ -81,7 +82,7 @@ writers:
 		Expect(err).NotTo(HaveOccurred())
 		configFile = c.Name()
 
-		command := exec.Command(program, args...)
+		command := exec.Command(program)
 		env := os.Environ()
 
 		if envAdd != nil {
@@ -94,8 +95,6 @@ writers:
 	})
 
 	AfterEach(func() {
-		Expect(os.Remove(filename1)).NotTo(HaveOccurred())
-		Expect(os.Remove(filename2)).NotTo(HaveOccurred())
 		Expect(os.Remove(configFile)).NotTo(HaveOccurred())
 	})
 
@@ -194,7 +193,6 @@ writers:
 	})
 
 	Describe("Loading writers", func() {
-		message := "this message should be in the log file"
 
 		BeforeEach(func() {
 			envAdd = func(env []string) []string {
@@ -209,21 +207,25 @@ writers:
 
 		Context("having two file loggers in the config file", func() {
 
-			doRequest := func(level string) {
+			doRequest := func(message, level string) {
 				url := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 
-				req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(fmt.Sprintf(`{"message":"%s","type":"%s"}`, message, level))))
+				req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(
+					fmt.Sprintf(`{"message":"%s","type":"%s"}`, message, level)),
+				))
 				Expect(err).NotTo(HaveOccurred())
 
 				client := &http.Client{}
 				Eventually(func() error {
 					_, err := client.Do(req)
 					return err
-				}, 0.4, 0.1).ShouldNot(HaveOccurred())
+				}, 0.2, 0.1).ShouldNot(HaveOccurred())
 			}
 
 			It("should write the line in both files", func(done Done) {
-				doRequest("info")
+				message := "this message should be in the log file"
+				doRequest(message, "info")
+
 				Eventually(func() string {
 					content, err := ioutil.ReadFile(filename1)
 					Expect(err).NotTo(HaveOccurred())
@@ -241,7 +243,8 @@ writers:
 			}, 2)
 
 			DescribeTable("the log level is present in the log", func(level string) {
-				doRequest(level)
+				message := "this message should be in the logs"
+				doRequest(message, level)
 
 				Eventually(func() string {
 					content, err := ioutil.ReadFile(filename1)
