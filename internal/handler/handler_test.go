@@ -9,17 +9,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/arsham/logpipe/handler"
 	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/internal/config"
+	"github.com/arsham/logpipe/internal/handler"
+	"github.com/arsham/logpipe/reader"
 	"github.com/arsham/logpipe/writer"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -32,10 +32,15 @@ type timedWriter struct {
 	content string
 	delay   time.Duration
 	sync.Mutex
-	closed bool
+	closed    bool
+	writeFunc func([]byte) (int, error)
 }
 
 func (s *timedWriter) Write(p []byte) (int, error) {
+	if s.writeFunc != nil {
+		return s.writeFunc(p)
+	}
+
 	if s.closed {
 		return 0, errors.New("file is already closed")
 	}
@@ -68,45 +73,62 @@ func (l *logLocker) Write(p []byte) (int, error) {
 	return l.Buffer.Write(p)
 }
 
+func (l *logLocker) String() string {
+	l.Lock()
+	defer l.Unlock()
+	return l.Buffer.String()
+}
+
+var letters = []byte("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ ")
+
+func randBytes(n int) []byte {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return b
+}
+
 var _ = Describe("Handler", func() {
 	Describe("New", func() {
+		var (
+			logger internal.FieldLogger
+			err    error
+			s      *handler.Service
+		)
 
 		Context("when no writer is passed", func() {
-			logger := internal.DiscardLogger()
-			s, err := handler.New(logger)
+			JustBeforeEach(func() {
+				logger = internal.DiscardLogger()
+				s, err = handler.New(logger)
+			})
 
 			It("should return an error", func() {
 				Expect(errors.Cause(err)).To(Equal(handler.ErrNoWriter))
 			})
+
 			Specify("service is nil", func() {
 				Expect(s).To(BeNil())
 			})
 		})
 
 		Context("when no logger is passed", func() {
-			var (
-				s   *handler.Service
-				err error
-			)
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				writers := handler.WithWriters(new(bytes.Buffer))
 				s, err = handler.New(nil, writers)
 			})
 
 			It("should return an error", func() {
-				Expect(errors.Cause(err)).To(Equal(handler.ErrNoLogger))
+				Expect(errors.Cause(err)).To(Equal(handler.ErrNilLogger))
 			})
+
 			Specify("service is nil", func() {
 				Expect(s).To(BeNil())
 			})
 		})
 
 		Context("when no timeout is set", func() {
-			var (
-				s   *handler.Service
-				err error
-			)
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				writers := handler.WithWriters(new(bytes.Buffer))
 				s, err = handler.New(internal.DiscardLogger(), writers)
 			})
@@ -120,22 +142,27 @@ var _ = Describe("Handler", func() {
 			})
 
 			Specify("the timeout is 5 seconds by default", func() {
-				Expect(s.Timeout).To(Equal(time.Second * 5))
+				Expect(s.Timeout()).To(Equal(time.Second * 5))
 			})
 		})
 	})
 
 	Describe("WithWriters", func() {
 		var (
-			w1  = new(timedWriter)
-			w2  = new(timedWriter)
+			w1  *timedWriter
+			w2  *timedWriter
 			s   *handler.Service
 			err error
 		)
 
+		BeforeEach(func() {
+			w1 = new(timedWriter)
+			w2 = new(timedWriter)
+		})
+
 		Context("when adding one writer", func() {
 
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				s, err = handler.New(
 					internal.DiscardLogger(),
 					handler.WithWriters(w1),
@@ -150,7 +177,7 @@ var _ = Describe("Handler", func() {
 
 		Context("when adding multiple writers", func() {
 
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				s, err = handler.New(
 					internal.DiscardLogger(),
 					handler.WithWriters(w1),
@@ -167,7 +194,7 @@ var _ = Describe("Handler", func() {
 
 		Context("when adding a writer after creation", func() {
 
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				s, err = handler.New(
 					internal.DiscardLogger(),
 					handler.WithWriters(w1),
@@ -184,7 +211,7 @@ var _ = Describe("Handler", func() {
 
 		Context("if one writer was added multiple times", func() {
 
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				s, err = handler.New(
 					internal.DiscardLogger(),
 					handler.WithWriters(w1),
@@ -238,7 +265,7 @@ var _ = Describe("Handler", func() {
 			)
 			BeforeEach(func() {
 				logger = internal.DiscardLogger()
-				f, err = ioutil.TempFile("", "handler_with_config")
+				f, err = ioutil.TempFile("", "test_handler_with_config")
 				Expect(err).NotTo(HaveOccurred())
 				location = f.Name()
 			})
@@ -307,7 +334,7 @@ var _ = Describe("Handler", func() {
 			Specify("it should set the timeout in the service", func() {
 				s := &handler.Service{}
 				Expect(handler.WithTimeout(time.Second)(s)).NotTo(HaveOccurred())
-				Expect(s.Timeout).To(Equal(time.Second))
+				Expect(s.Timeout()).To(Equal(time.Second))
 			})
 		})
 	})
@@ -356,10 +383,10 @@ var _ = Describe("Handler", func() {
 					Expect(rec.Code).To(Equal(status))
 					Eventually(logWriter.String()).Should(ContainSubstring(errMsg.Error()))
 				},
-					Entry("empty", `{}`, http.StatusBadRequest, handler.ErrEmptyObject),
+					Entry("empty", `{}`, http.StatusBadRequest, reader.ErrEmptyObject),
 					Entry("bogus values", `{"something":"another thing"}`, http.StatusBadRequest, handler.ErrGettingReader),
-					Entry("corrupted", `"something":"another thing"}`, http.StatusBadRequest, handler.ErrGettingMap),
-					Entry("jason reader error", `{"s":[1,2 3]}`, http.StatusBadRequest, handler.ErrCorruptedJSON),
+					Entry("corrupted", `"something":"another thing"}`, http.StatusBadRequest, reader.ErrCorruptedJSON),
+					Entry("array error", `{"s":[1,2 3]}`, http.StatusBadRequest, reader.ErrCorruptedJSON),
 				)
 
 				Context("handling copy to closed file", func() {
@@ -381,7 +408,7 @@ var _ = Describe("Handler", func() {
 						}
 						h = http.HandlerFunc(s.RecieveHandler)
 
-						message := `{"type":"error","message":"blah","timestamp":"2017-01-01"}`
+						message := fmt.Sprintf(`{"type":"error","message":"%s","timestamp":"2017-01-01"}`, randBytes(100))
 						req, err = http.NewRequest("POST", "/", bytes.NewBuffer([]byte(message)))
 						Expect(err).NotTo(HaveOccurred())
 
@@ -394,20 +421,19 @@ var _ = Describe("Handler", func() {
 					})
 
 					It("eventually should log the error", func() {
-						Eventually(func() string {
-							logWriter.Lock()
-							defer logWriter.Unlock()
-							return logWriter.String()
-						}, flushDelay).Should(ContainSubstring(handler.ErrWritingEntry.Error()))
+						Eventually(logWriter.String, flushDelay).Should(ContainSubstring(handler.ErrWritingEntry.Error()))
 					})
 				})
 
 				Context("handling plain logs and writing to a file", func() {
-					errMsg := "this error has occurred"
-					kind := "error"
-					timestamp := "2017-01-14 19:10:10"
+					var (
+						errMsg    string
+						kind      = "error"
+						timestamp = "2017-01-14 19:10:10"
+					)
 
 					JustBeforeEach(func() {
+						errMsg = string(randBytes(100))
 						message := fmt.Sprintf(`{"type":"%s","message":"%s","timestamp":"%s"}`,
 							kind,
 							errMsg,
@@ -421,24 +447,23 @@ var _ = Describe("Handler", func() {
 					})
 
 					It("should eventually write the log entry", func() {
-						Eventually(func() string {
-							return file1.String()
-						}, flushDelay+5*time.Second, 0.2).Should(ContainSubstring(errMsg))
+						Eventually(file1.String, flushDelay+5*time.Second, 0.2).Should(ContainSubstring(errMsg))
 					})
 
 					It("should eventually write the log level", func() {
-						Eventually(func() string {
-							return file1.String()
-						}, flushDelay+5*time.Second, 0.2).Should(ContainSubstring(kind))
+						Eventually(file1.String, flushDelay+5*time.Second, 0.2).Should(ContainSubstring(kind))
 					})
 				})
 
 				Context("handling plain logs and writing to multiple files", func() {
-					errMsg := "this error has occurred"
-					kind := "error"
-					timestamp := "2017-01-14 19:10:10"
+					var (
+						errMsg    string
+						kind      = "error"
+						timestamp = "2017-01-14 19:10:10"
+					)
 
 					JustBeforeEach(func() {
+						errMsg = string(randBytes(100))
 						message := fmt.Sprintf(`{"type":"%s","message":"%s","timestamp":"%s"}`,
 							kind,
 							errMsg,
@@ -454,13 +479,10 @@ var _ = Describe("Handler", func() {
 					Context("when both writers are available", func() {
 
 						It("should eventually write the log entry to both files", func() {
-							Eventually(func() string {
-								return file1.String()
-							}, flushDelay+time.Second*2, 0.2).Should(ContainSubstring(errMsg))
-
-							Eventually(func() string {
-								return file2.String()
-							}, flushDelay+time.Second*2, 0.2).Should(ContainSubstring(errMsg))
+							Eventually(file1.String, flushDelay+time.Second*2, 0.2).
+								Should(ContainSubstring(errMsg))
+							Eventually(file2.String, flushDelay+time.Second*2, 0.2).
+								Should(ContainSubstring(errMsg))
 						})
 					})
 
@@ -470,18 +492,13 @@ var _ = Describe("Handler", func() {
 						})
 
 						It("should eventually write the log entry to the available file", func() {
-
-							Eventually(func() string {
-								return file1.String()
-							}, flushDelay+time.Second).Should(ContainSubstring(errMsg))
+							Eventually(file1.String, flushDelay+time.Second).
+								Should(ContainSubstring(errMsg))
 						})
 
 						It("should eventually log there was an error on the other file", func() {
-							Eventually(func() string {
-								logWriter.Lock()
-								defer logWriter.Unlock()
-								return logWriter.String()
-							}, flushDelay+time.Second).Should(ContainSubstring(handler.ErrWritingEntry.Error()))
+							Eventually(logWriter.String, flushDelay+time.Second).
+								Should(ContainSubstring(handler.ErrWritingEntry.Error()))
 						})
 					})
 				})
@@ -494,10 +511,10 @@ var _ = Describe("Handler", func() {
 						delay     = 500 * time.Millisecond
 						fastDelay = time.Millisecond
 						service   *handler.Service
+						errMsg    string
+						kind      = "error"
+						timestamp = time.Now().Format(reader.TimestampFormat)
 					)
-					errMsg := "this error has occurred"
-					kind := "error"
-					timestamp := "2017-01-14 19:10:10"
 
 					BeforeEach(func(done Done) {
 						file1 = &timedWriter{delay: fastDelay}
@@ -511,6 +528,7 @@ var _ = Describe("Handler", func() {
 						Expect(handler.WithWriters(file1, file2, file3)(service)).NotTo(HaveOccurred())
 						h := http.HandlerFunc(service.RecieveHandler)
 
+						errMsg = string(randBytes(100))
 						message := fmt.Sprintf(`{"type":"%s","message":"%s","timestamp":"%s"}`,
 							kind,
 							errMsg,
@@ -524,135 +542,45 @@ var _ = Describe("Handler", func() {
 
 						close(done)
 
-					}, flushDelay.Seconds()*2) // This request should not take as long as the slow writer
+					}, delay.Seconds()*2) // This request should not take as long as the slow writer
 
 					It("should write the log entry to the fast writers", func(done Done) {
 
-						Eventually(func() string {
-							return file1.String()
-						}, flushDelay).Should(ContainSubstring(errMsg))
-
-						Eventually(func() string {
-							return file2.String()
-						}, flushDelay).Should(ContainSubstring(errMsg))
-
+						Eventually(file1.String, flushDelay.Seconds()).Should(ContainSubstring(errMsg))
+						Eventually(file2.String, flushDelay.Seconds()).Should(ContainSubstring(errMsg))
 						close(done)
 
-					}, flushDelay.Seconds()+1)
+					}, flushDelay.Seconds()+0.1)
 
 					It("should eventually write the log entry to the slow one", func(done Done) {
-						Eventually(func() string {
-							return file3.String()
-						}, delay*2).Should(ContainSubstring(errMsg))
 
-						Eventually(func() string {
-							return logWriter.String()
-						}).ShouldNot(ContainSubstring(handler.ErrWritingEntry.Error()))
-
+						Eventually(file3.String, delay*2).Should(ContainSubstring(errMsg))
+						Eventually(logWriter.String).ShouldNot(ContainSubstring(handler.ErrWritingEntry.Error()))
 						close(done)
 
-					}, delay.Seconds()+1)
-				})
-			})
-		})
-
-		Describe("Serve", func() {
-			var (
-				port       int
-				logger     internal.FieldLogger
-				loggerBuff *bytes.Buffer
-				service    *handler.Service
-				stop       chan os.Signal
-				errChan    chan error
-				timeout    = 500 * time.Millisecond
-			)
-			BeforeEach(func() {
-				addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-				Expect(err).ShouldNot(HaveOccurred())
-				tcpConn, err := net.ListenTCP("tcp", addr)
-				Expect(err).ShouldNot(HaveOccurred())
-				port = tcpConn.Addr().(*net.TCPAddr).Port
-				Expect(tcpConn.Close()).NotTo(HaveOccurred())
-
-				loggerBuff = new(bytes.Buffer)
-				logger = internal.WithWriter(loggerBuff)
-			})
-
-			Describe("setting up the server", func() {
-
-				BeforeEach(func() {
-					service = &handler.Service{Logger: logger, Timeout: timeout}
-					stop = make(chan os.Signal)
-					errChan = make(chan error)
-					go service.Serve(stop, errChan, port)
+					}, delay.Seconds()+0.1)
 				})
 
-				AfterEach(func(done Done) {
-					select {
-					case e := <-errChan: // draining the errChan
-						Expect(e).To(BeNil())
-					case <-time.After(time.Second):
-					}
+				Context("handling empty msg in payload", func() {
+					var (
+						kind      = "error"
+						timestamp = "2017-01-14 19:10:10"
+					)
 
-					stop <- os.Interrupt
-					Expect(<-errChan).To(Equal(io.EOF))
-					close(done)
-				}, timeout.Seconds()*10)
-
-				Context("calling serve twice", func() {
-					It("should return an error saying the address is already in use", func(done Done) {
-						// waiting for the first serve to finish starting up
-						time.Sleep(100 * time.Millisecond)
-						stop := make(chan os.Signal)
-						errChan := make(chan error)
-						go service.Serve(stop, errChan, port)
-						e := <-errChan
-						Expect(e).To(HaveOccurred())
-						Expect(e).To(BeAssignableToTypeOf(&net.OpError{}))
-
-						close(done)
-					}, timeout.Seconds()*10)
-				})
-
-				Context("having set up on a port", func() {
-
-					It("should log the port that it's listening on", func(done Done) {
-						Eventually(func() string {
-							return loggerBuff.String()
-						}, 1).Should(ContainSubstring(strconv.Itoa(port)))
-						close(done)
-					}, timeout.Seconds()*10)
-				})
-
-			})
-
-			Describe("shutting down", func() {
-
-				Context("having called on a port", func() {
-
-					Context("when sending the SIGINT", func() {
-						var (
-							service *handler.Service
-							stop    chan os.Signal
-							errChan chan error
+					JustBeforeEach(func() {
+						message := fmt.Sprintf(`{"type":"%s","message":"","timestamp":"%s"}`,
+							kind,
+							timestamp,
 						)
+						req, err := http.NewRequest("POST", "/", bytes.NewBuffer([]byte(message)))
+						Expect(err).NotTo(HaveOccurred())
 
-						BeforeEach(func() {
-							service = &handler.Service{Logger: logger, Timeout: timeout}
-							stop = make(chan os.Signal)
-							errChan = make(chan error)
-							go service.Serve(stop, errChan, port)
-							stop <- os.Interrupt
-						})
+						req.Header.Set("Content-Type", "application/json")
+						h.ServeHTTP(rec, req)
+					})
 
-						It("should shut down the server", func() {
-							Expect(<-errChan).To(Equal(io.EOF))
-						})
-						It("should log it has been shut down", func() {
-							Eventually(func() string {
-								return loggerBuff.String()
-							}).Should(ContainSubstring("shutting down"))
-						})
+					It("should eventually log an error", func() {
+						Eventually(logWriter.String, flushDelay+time.Second, 0.2).Should(ContainSubstring(reader.ErrEmptyMessage.Error()))
 					})
 				})
 			})

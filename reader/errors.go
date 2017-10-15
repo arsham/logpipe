@@ -13,9 +13,12 @@ var (
 	// ErrEmptyMessage is returned when the message body is an empty string.
 	ErrEmptyMessage = errors.New("empty message")
 
-	// ErrDecodeJSON is returned when the payload is not JSON unmarshallable.
-	ErrDecodeJSON = errors.New("decoding json object")
-
 	// ErrTimestamp is returned when the timestamp is not valid.
 	ErrTimestamp = errors.New("invalid timestamp")
+
+	// ErrEmptyObject is retuned when the payload is an empty object.
+	ErrEmptyObject = errors.New("empty object")
+
+	// ErrCorruptedJSON is returned the payload is corrupted.
+	ErrCorruptedJSON = errors.New("corrupted json")
 )

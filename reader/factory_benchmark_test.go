@@ -5,6 +5,7 @@
 package reader_test
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -26,16 +27,14 @@ func BenchmarkGetReaderPlain(b *testing.B) {
 
 	for _, t := range tc {
 		b.Run(t.name, func(b *testing.B) {
-			b.StopTimer()
 			logger := internal.DiscardLogger()
-			input := []byte(
+			input := bytes.NewReader([]byte(
 				fmt.Sprintf(
 					`{"type":"error","message":"%s","timestamp":"%s"}`,
 					strings.Repeat(t.msg, t.length),
 					t.timestamp,
 				),
-			)
-			b.StartTimer()
+			))
 
 			for i := 0; i < b.N; i++ {
 				_, err := reader.GetReader(input, logger)

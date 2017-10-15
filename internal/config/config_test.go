@@ -25,7 +25,7 @@ var _ = Describe("Read", func() {
 		)
 
 		JustBeforeEach(func() {
-			f, err := ioutil.TempFile("", "config_test")
+			f, err := ioutil.TempFile("", "test_config")
 			Expect(err).NotTo(HaveOccurred())
 			_, err = f.Write(input)
 			Expect(err).NotTo(HaveOccurred())

@@ -37,6 +37,8 @@ const (
 	DebugLevel = logrus.DebugLevel
 	// ErrorLevel for Error level
 	ErrorLevel = logrus.ErrorLevel
+	// PanicLevel for Panic level
+	PanicLevel = logrus.PanicLevel
 )
 
 // GetLogger returns the default logger with the given log level.
@@ -56,6 +58,8 @@ func GetLogger(level string) *Logger {
 		logrus.SetLevel(WarnLevel)
 	case "error":
 		logrus.SetLevel(ErrorLevel)
+	case "panic":
+		logrus.SetLevel(PanicLevel)
 	default:
 		logrus.SetLevel(ErrorLevel)
 	}

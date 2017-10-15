@@ -5,14 +5,10 @@
 package main
 
 import (
-	"io"
 	"log"
-	"os"
-	"os/signal"
 
-	"github.com/arsham/logpipe/handler"
 	"github.com/arsham/logpipe/internal"
-	"github.com/arsham/logpipe/internal/config"
+	"github.com/arsham/logpipe/internal/handler"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -29,27 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
 
 	logger := internal.GetLogger(opts.LogLevel)
-	logger.Infof("config file: %s", opts.ConfigFile)
-
-	c, err := config.Read(opts.ConfigFile)
-	if err != nil {
-		logger.Fatal(err, opts.ConfigFile)
-	}
-
-	s, err := handler.New(
-		logger,
-		handler.WithConfWriters(logger, c),
-	)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	errChan := make(chan error)
-	go s.Serve(stop, errChan, opts.Port)
-	if e := <-errChan; e != io.EOF {
-		logger.Fatal(e)
-	}
+	handler.Bootstrap(logger, opts.ConfigFile, opts.Port)
 }

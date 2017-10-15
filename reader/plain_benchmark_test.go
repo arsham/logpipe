@@ -40,9 +40,7 @@ func BenchmarkPlainReadIoutilReadAllLarge(b *testing.B) {
 }
 
 func benchmarkPlainRead(b *testing.B, count int) {
-	b.StopTimer()
 	message := strings.Repeat("this is a long message", count)
-	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		p := &reader.Plain{
 			Kind:      "error",
@@ -55,9 +53,7 @@ func benchmarkPlainRead(b *testing.B, count int) {
 }
 
 func benchmarkPlainReadIoCopy(b *testing.B, count int) {
-	b.StopTimer()
 	message := strings.Repeat("this is a long message", count)
-	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		p := &reader.Plain{
 			Kind:      "error",
@@ -70,9 +66,7 @@ func benchmarkPlainReadIoCopy(b *testing.B, count int) {
 }
 
 func benchmarkPlainReadIoutilReadAll(b *testing.B, count int) {
-	b.StopTimer()
 	message := strings.Repeat("this is a long message", count)
-	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		p := &reader.Plain{
 			Kind:      "error",

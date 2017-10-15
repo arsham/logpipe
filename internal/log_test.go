@@ -32,6 +32,9 @@ func TestGetLoggerLevels(t *testing.T) {
 		{"iNfO", internal.Level(internal.InfoLevel)},
 		{"wArN", internal.Level(internal.WarnLevel)},
 		{"eRrOR", internal.Level(internal.ErrorLevel)},
+		{"panic", internal.Level(internal.PanicLevel)},
+		{"PANIC", internal.Level(internal.PanicLevel)},
+		{"PaniC", internal.Level(internal.PanicLevel)},
 		{"", internal.Level(internal.ErrorLevel)},
 		{"sdfsdf", internal.Level(internal.ErrorLevel)},
 	}
