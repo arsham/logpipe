@@ -27,5 +27,8 @@ func main() {
 	}
 
 	logger := internal.GetLogger(opts.LogLevel)
-	handler.Bootstrap(logger, opts.ConfigFile, opts.Port)
+	err = handler.Bootstrap(logger, opts.ConfigFile, opts.Port)
+	if err != nil {
+		logger.Fatal(err)
+	}
 }

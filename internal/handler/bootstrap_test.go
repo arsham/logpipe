@@ -22,6 +22,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+func getRandomPort() int {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	Expect(err).ShouldNot(HaveOccurred())
+
+	tcpConn, err := net.ListenTCP("tcp", addr)
+	Expect(err).ShouldNot(HaveOccurred())
+	port := tcpConn.Addr().(*net.TCPAddr).Port
+	Expect(tcpConn.Close()).NotTo(HaveOccurred())
+	return port
+}
+
 var _ = Describe("Bootstrap", func() {
 	var (
 		port       int
@@ -33,13 +44,7 @@ var _ = Describe("Bootstrap", func() {
 
 	JustBeforeEach(func() {
 		logLevel = "info"
-		addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-		Expect(err).ShouldNot(HaveOccurred())
-
-		tcpConn, err := net.ListenTCP("tcp", addr)
-		Expect(err).ShouldNot(HaveOccurred())
-		port = tcpConn.Addr().(*net.TCPAddr).Port
-		Expect(tcpConn.Close()).NotTo(HaveOccurred())
+		port = getRandomPort()
 
 		file, err := ioutil.TempFile("", "bootstrap_test")
 		Expect(err).NotTo(HaveOccurred())
@@ -69,13 +74,14 @@ writers:
 	Context("when calling the function", func() {
 
 		var (
-			serveFunc func(s handler.ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port int) error
-			logger    internal.FieldLogger
-			logWriter *logLocker
+			serveFunc        func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error
+			logger           internal.FieldLogger
+			logWriter        *logLocker
+			defaultServeFunc = handler.ServeHTTP
 		)
 
 		JustBeforeEach(func() {
-			handler.ServeFunc = serveFunc
+			handler.ServeHTTP = serveFunc
 			logWriter = &logLocker{
 				new(bytes.Buffer),
 				new(sync.Mutex),
@@ -85,29 +91,30 @@ writers:
 		})
 
 		AfterEach(func() {
-			serveFunc = handler.Serve
+			handler.ServeHTTP = defaultServeFunc
 		})
 
 		Context("when config file does not exist", func() {
-			filename := "/no where to find"
+			var (
+				filename = "/no where to find"
+				err      error
+			)
 			JustBeforeEach(func() {
-				handler.Bootstrap(logger, filename, 8080)
+				err = handler.Bootstrap(logger, filename, 8080)
 			})
 
-			It("should print an error", func() {
-				Eventually(logWriter.String).Should(ContainSubstring(filename))
-				Eventually(logWriter.String).Should(ContainSubstring(config.ErrFileNotExist.Error()))
+			It("should return ErrFileNotExist error", func() {
+				Expect(errors.Cause(err)).To(Equal(config.ErrFileNotExist))
 			})
-
-			It("should not start the server", func() {
-				Eventually(logWriter.String).ShouldNot(ContainSubstring("running on port"))
+			It("should mention the file name", func() {
+				Expect(err.Error()).To(ContainSubstring(filename))
 			})
 		})
 
 		Context("when passing a port number", func() {
 
 			BeforeEach(func() {
-				serveFunc = func(s handler.ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
 					return nil
 				}
 			})
@@ -126,7 +133,7 @@ writers:
 		Context("when a the logger is nil", func() {
 			var thisLogger internal.FieldLogger
 			BeforeEach(func() {
-				serveFunc = func(s handler.ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
 					thisLogger = logger
 					return nil
 				}
@@ -148,48 +155,46 @@ writers:
 
 		Context("when no writer is passed", func() {
 			var (
-				originType string
-				err        = errors.New("this should not happen")
+				originType  string
+				expectedErr = errors.New("this should not happen")
+				err         error
 			)
 			BeforeEach(func() {
 				originType = writerType
 				writerType = "does not apply"
-				serveFunc = func(s handler.ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port int) error {
-					return err
+				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+					return expectedErr
 				}
 			})
 
 			JustBeforeEach(func() {
-				handler.Bootstrap(logger, configFile, port)
+				err = handler.Bootstrap(logger, configFile, port)
 			})
 
 			AfterEach(func() { writerType = originType })
 
-			It("should print the ErrNoWriter error", func() {
-				Eventually(logWriter.String).Should(ContainSubstring(handler.ErrNoWriter.Error()))
-			})
-			It("should not start the server", func() {
-				Eventually(logWriter.String).ShouldNot(ContainSubstring("running on port"))
+			It("should return the ErrNoWriter error", func() {
+				Expect(errors.Cause(err)).To(Equal(handler.ErrNoWriter))
 			})
 		})
 
 		Context("when server has an error while serving", func() {
 
-			var err = errors.New("this should not happen")
+			var (
+				expectedErr = errors.New("this should not happen")
+				err         error
+			)
 			BeforeEach(func() {
-				serveFunc = func(s handler.ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port int) error {
-					return err
+				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+					return expectedErr
 				}
 			})
 			JustBeforeEach(func() {
-				handler.Bootstrap(logger, configFile, port)
+				err = handler.Bootstrap(logger, configFile, port)
 			})
 
-			It("should print the error", func() {
-				Eventually(logWriter.String).Should(ContainSubstring(err.Error()))
-			})
-			It("should not start the server", func() {
-				Eventually(logWriter.String).Should(ContainSubstring("error when serving"))
+			It("should return the error", func() {
+				Expect(errors.Cause(err)).To(Equal(expectedErr))
 			})
 		})
 	})
@@ -200,18 +205,11 @@ var _ = Describe("Serve", func() {
 		port      int
 		logger    internal.FieldLogger
 		logWriter *logLocker
-		service   *handler.Service
-		stop      chan os.Signal
-		errChan   chan error
 		timeout   = 500 * time.Millisecond
 	)
+
 	BeforeEach(func() {
-		addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-		Expect(err).ShouldNot(HaveOccurred())
-		tcpConn, err := net.ListenTCP("tcp", addr)
-		Expect(err).ShouldNot(HaveOccurred())
-		port = tcpConn.Addr().(*net.TCPAddr).Port
-		Expect(tcpConn.Close()).NotTo(HaveOccurred())
+		port = getRandomPort()
 
 		logWriter = &logLocker{
 			new(bytes.Buffer),
@@ -221,6 +219,11 @@ var _ = Describe("Serve", func() {
 	})
 
 	Describe("setting up the server", func() {
+		var (
+			service *handler.Service
+			stop    chan os.Signal
+			errChan chan error
+		)
 
 		BeforeEach(func() {
 			service = &handler.Service{Logger: logger}
@@ -228,7 +231,7 @@ var _ = Describe("Serve", func() {
 			stop = make(chan os.Signal)
 			errChan = make(chan error)
 			go func() {
-				errChan <- handler.Serve(service, logger, stop, port)
+				errChan <- handler.ServeHTTP(service, logger, stop, port)
 			}()
 		})
 
@@ -249,7 +252,7 @@ var _ = Describe("Serve", func() {
 				// waiting for the first serve to finish starting up
 				time.Sleep(100 * time.Millisecond)
 				stop := make(chan os.Signal)
-				e := handler.Serve(service, logger, stop, port)
+				e := handler.ServeHTTP(service, logger, stop, port)
 				Expect(e).To(HaveOccurred())
 				Expect(e).To(BeAssignableToTypeOf(&net.OpError{}))
 
@@ -275,7 +278,7 @@ var _ = Describe("Serve", func() {
 					stop = make(chan os.Signal)
 					errChan = make(chan error)
 					go func() {
-						errChan <- handler.Serve(service, logger, stop, port)
+						errChan <- handler.ServeHTTP(service, logger, stop, port)
 					}()
 					stop <- os.Interrupt
 				})

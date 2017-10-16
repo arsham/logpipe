@@ -28,16 +28,16 @@ func BenchmarkGetReaderPlain(b *testing.B) {
 	for _, t := range tc {
 		b.Run(t.name, func(b *testing.B) {
 			logger := internal.DiscardLogger()
-			input := bytes.NewReader([]byte(
+			input := []byte(
 				fmt.Sprintf(
 					`{"type":"error","message":"%s","timestamp":"%s"}`,
 					strings.Repeat(t.msg, t.length),
 					t.timestamp,
 				),
-			))
+			)
 
 			for i := 0; i < b.N; i++ {
-				_, err := reader.GetReader(input, logger)
+				_, err := reader.GetReader(bytes.NewReader(input), logger)
 				if err != nil {
 					b.Error(err)
 				}

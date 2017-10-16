@@ -23,6 +23,23 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
+func getRandomPort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	tcpConn, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	port := tcpConn.Addr().(*net.TCPAddr).Port
+	if err = tcpConn.Close(); err != nil {
+		return 0, nil
+	}
+	return port, nil
+}
+
 var _ = Describe("Main", func() {
 	var (
 		program    string
@@ -31,7 +48,6 @@ var _ = Describe("Main", func() {
 		envAdd     func([]string) []string
 		filename1  string
 		filename2  string
-		logLevel   string
 		configFile string
 	)
 
@@ -39,6 +55,15 @@ var _ = Describe("Main", func() {
 		var err error
 		program, err = gexec.Build("github.com/arsham/logpipe")
 		Expect(err).ShouldNot(HaveOccurred())
+
+	})
+
+	AfterSuite(func() {
+		gexec.CleanupBuildArtifacts()
+		session.Interrupt()
+	})
+
+	BeforeEach(func() {
 		f1, err := ioutil.TempFile("", "main_test")
 		Expect(err).NotTo(HaveOccurred())
 		filename1 = f1.Name()
@@ -48,22 +73,11 @@ var _ = Describe("Main", func() {
 		filename2 = f2.Name()
 	})
 
-	AfterSuite(func() {
-		gexec.CleanupBuildArtifacts()
-		session.Interrupt()
-		Expect(os.Remove(filename1)).NotTo(HaveOccurred())
-		Expect(os.Remove(filename2)).NotTo(HaveOccurred())
-	})
-
 	JustBeforeEach(func() {
-		logLevel = "info"
-		addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-		Expect(err).ShouldNot(HaveOccurred())
-
-		tcpConn, err := net.ListenTCP("tcp", addr)
-		Expect(err).ShouldNot(HaveOccurred())
-		port = tcpConn.Addr().(*net.TCPAddr).Port
-		Expect(tcpConn.Close()).NotTo(HaveOccurred())
+		var err error
+		logLevel := "info"
+		port, err = getRandomPort()
+		Expect(err).NotTo(HaveOccurred())
 
 		c, err := ioutil.TempFile("", "main_config_test")
 		Expect(err).NotTo(HaveOccurred())
@@ -95,6 +109,8 @@ writers:
 	})
 
 	AfterEach(func() {
+		Expect(os.Remove(filename1)).NotTo(HaveOccurred())
+		Expect(os.Remove(filename2)).NotTo(HaveOccurred())
 		Expect(os.Remove(configFile)).NotTo(HaveOccurred())
 	})
 
@@ -115,12 +131,13 @@ writers:
 					return env
 				}
 			})
-			AfterEach(func() {
-				envAdd = nil
+			AfterEach(func() { envAdd = nil })
+
+			JustBeforeEach(func() {
+				Eventually(session.Err).ShouldNot(gbytes.Say("config-file"))
 			})
 
-			It("should apply the port and logfile", func() {
-				Eventually(session.Err).ShouldNot(gbytes.Say("config-file"))
+			It("should response to the port", func() {
 
 				url := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 				req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(`{"message":"blah"}`)))
@@ -153,9 +170,7 @@ writers:
 				}
 			})
 
-			AfterEach(func() {
-				envAdd = nil
-			})
+			AfterEach(func() { envAdd = nil })
 
 			It("should not error", func() {
 				Eventually(session.Err).ShouldNot(gbytes.Say("config-file"))
@@ -172,9 +187,8 @@ writers:
 				return env
 			}
 		})
-		AfterEach(func() {
-			envAdd = nil
-		})
+
+		AfterEach(func() { envAdd = nil })
 
 		Context("with given port number", func() {
 
@@ -201,9 +215,8 @@ writers:
 				return env
 			}
 		})
-		AfterEach(func() {
-			envAdd = nil
-		})
+
+		AfterEach(func() { envAdd = nil })
 
 		Context("having two file loggers in the config file", func() {
 
@@ -277,9 +290,7 @@ writers:
 			}
 		})
 
-		AfterEach(func() {
-			envAdd = nil
-		})
+		AfterEach(func() { envAdd = nil })
 
 		Context("when sending SIGINT signal", func() {
 			Specify("the application should gracefully quit", func(done Done) {

@@ -82,18 +82,6 @@ func (l *Service) RecieveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// buf = new(bytes.Buffer)
-	// buf.ReadFrom(rd)
-	// b := buf.Bytes()
-	// for _, wr := range l.Writers {
-	// 	go func(wr io.Writer, b []byte) {
-	// 		_, err := wr.Write(b)
-	// 		if err != nil {
-	// 			l.Logger.Error(errors.Wrap(err, ErrWritingEntry.Error()))
-	// 		}
-	// 	}(wr, b)
-	// }
-
 	go func(l *Service) {
 		concWriter := writer.NewDistribute(l.Writers...)
 		_, err = io.Copy(concWriter, rd)

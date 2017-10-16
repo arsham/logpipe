@@ -6,6 +6,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,25 +15,32 @@ import (
 
 	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/internal/config"
+	"github.com/pkg/errors"
 )
 
 // This file contains configuration required for bootstrapping the app.
 
-// ServiceInt is an interface for the handler.Service
-type ServiceInt interface {
+// Server is an interface for the handler.Service
+type Server interface {
 	Handler() http.HandlerFunc
 	Timeout() time.Duration
 }
 
-// ServeFunc is a function that is run for setting up the handlers.
-var ServeFunc func(s ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port int) error
+// ServeHTTP will set up the handlers and starts listening to the port. It
+// sets up the server in a goroutine. It will shut down when it receives an
+// Interrupt signal from the OS. It will hold on to the active connections
+// until they finish their work, or a timeout occurs.
+// It returns any errors occurred during the service.
+var ServeHTTP func(s Server, logger internal.FieldLogger, stop chan os.Signal, port int) error
 
 func init() {
-	ServeFunc = Serve
+	ServeHTTP = serveHTTP
 }
 
 // Bootstrap reads the command options and starts the server.
-func Bootstrap(logger internal.FieldLogger, configFile string, port int) {
+// It returns nil when the server finishes its work successfully, or else it
+// will return the error
+func Bootstrap(logger internal.FieldLogger, configFile string, port int) error {
 	if logger == nil {
 		logger = internal.GetLogger("error")
 	}
@@ -42,8 +50,7 @@ func Bootstrap(logger internal.FieldLogger, configFile string, port int) {
 
 	c, err := config.Read(configFile)
 	if err != nil {
-		logger.Errorf("%v: %s", err, configFile)
-		return
+		return errors.Wrap(err, fmt.Sprintf("while reading config file: %s", configFile))
 	}
 
 	logger.Infof("config file: %s", configFile)
@@ -53,22 +60,14 @@ func Bootstrap(logger internal.FieldLogger, configFile string, port int) {
 		WithConfWriters(logger, c),
 	)
 	if err != nil {
-		logger.Error(err)
-		return
+		return errors.Wrap(err, fmt.Sprintf("while creating the service. Config file: %s", configFile))
 	}
 
 	logger.Infof("running on port: %d", port)
-	err = ServeFunc(s, logger, stop, port)
-	if err != nil {
-		logger.Errorf("error when serving: %s", err)
-	}
+	return ServeHTTP(s, logger, stop, port)
 }
 
-// Serve starts a http.Server in a goroutine.
-// It listens to the Interrupt signal and shuts down the server.
-// It returns any errors occurred during the service.
-// In case of graceful shut down, it will nil.
-func Serve(s ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+func serveHTTP(s Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.Handler())
 	h := &http.Server{
@@ -93,6 +92,6 @@ func Serve(s ServiceInt, logger internal.FieldLogger, stop chan os.Signal, port 
 		ctx, cancel := context.WithTimeout(context.Background(), s.Timeout())
 		defer cancel()
 		logger.Infof("shutting down the server: %s", h.Shutdown(ctx))
-		return nil
 	}
+	return nil
 }

@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -36,21 +35,21 @@ func randBytes(n int) []byte {
 	return b
 }
 
-func generateFiles() (*os.File, *os.File, *os.File) {
+func generateFiles() (*os.File, *os.File, *os.File, error) {
 
 	c, err := ioutil.TempFile("", "main_test_config_")
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, nil, err
 	}
 	file1, err := ioutil.TempFile("", "main_test_file_")
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, nil, err
 	}
 	file2, err := ioutil.TempFile("", "main_test_file_")
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, nil, err
 	}
-	return c, file1, file2
+	return c, file1, file2, nil
 }
 
 func TestMain(m *testing.M) {
@@ -64,20 +63,15 @@ func TestMain(m *testing.M) {
 
 	}()
 
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	port, err = getRandomPort()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tcpConn, err := net.ListenTCP("tcp", addr)
+	c, file1, file2, err := generateFiles()
 	if err != nil {
 		log.Fatal(err)
 	}
-	port = tcpConn.Addr().(*net.TCPAddr).Port
-	if err = tcpConn.Close(); err != nil {
-		log.Fatal(err)
-	}
-	c, file1, file2 := generateFiles()
 
 	_, err = c.WriteString(fmt.Sprintf(`
 app:
