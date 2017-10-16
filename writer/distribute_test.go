@@ -110,7 +110,6 @@ var _ = Describe("Distribute", func() {
 				c: make([]byte, 6),
 				writeFunc: func([]byte) (int, error) {
 					panic("this is the panic")
-					return 0, nil
 				},
 			},
 		),
@@ -120,7 +119,6 @@ var _ = Describe("Distribute", func() {
 				c: make([]byte, 6),
 				writeFunc: func([]byte) (int, error) {
 					panic(errors.New("this is the panic"))
-					return 0, nil
 				},
 			},
 		),

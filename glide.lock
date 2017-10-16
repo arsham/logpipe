@@ -1,5 +1,5 @@
 hash: a7b31b2bc8b6b060813f1313515c2b70f2c1c1a40dba1b0b0c5fd3f07d380055
-updated: 2017-10-14T23:11:26.774284243+01:00
+updated: 2017-10-17T01:11:27.928945827+01:00
 imports:
 - name: github.com/araddon/dateparse
   version: ca7e753bd149dae747d76fa7d52b20b920f3a814
@@ -41,7 +41,7 @@ imports:
 - name: github.com/spf13/jwalterweatherman
   version: 12bd96e66386c1960ab0f74ced1362f66f552f7b
 - name: github.com/spf13/pflag
-  version: a9789e855c7696159b7db0db7f440b449edf2b31
+  version: 1f33b80956cde38911d1f23d764deb8d77a649ce
 - name: github.com/spf13/viper
   version: d9cca5ef33035202efb1586825bdbb15ff9ec3ba
 - name: golang.org/x/crypto
@@ -113,7 +113,7 @@ testImports:
   - matchers/support/goraph/util
   - types
 - name: golang.org/x/net
-  version: a04bdaca5b32abe1c069418fb7088ae607de5bd0
+  version: 1087133bc4af3073e18add999345c6ae75918503
   subpackages:
   - html
   - html/atom
