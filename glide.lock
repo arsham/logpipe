@@ -1,17 +1,18 @@
 hash: a7b31b2bc8b6b060813f1313515c2b70f2c1c1a40dba1b0b0c5fd3f07d380055
-updated: 2017-10-17T01:11:27.928945827+01:00
+updated: 2018-04-17T11:03:11.455942232+01:00
 imports:
 - name: github.com/araddon/dateparse
-  version: ca7e753bd149dae747d76fa7d52b20b920f3a814
+  version: b8014f0dba20b1727542b246efef132591129df7
 - name: github.com/bitly/go-simplejson
-  version: da1a8928f709389522c8023062a3739f3b4af419
+  version: 0c965951289cce37dec52ad1f34200fefc816777
 - name: github.com/fsnotify/fsnotify
-  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/hashicorp/hcl
-  version: 42e33e2d55a0ff1d6263f738896ea8c13571a8d0
+  version: ef8a98b0bbce4a65b5aa4c368430a80ddc533168
   subpackages:
   - hcl/ast
   - hcl/parser
+  - hcl/printer
   - hcl/scanner
   - hcl/strconv
   - hcl/token
@@ -19,42 +20,42 @@ imports:
   - json/scanner
   - json/token
 - name: github.com/jessevdk/go-flags
-  version: f88afde2fa19a30cf50ba4b05b3d13bc6bae3079
+  version: 1c38ed7ad0cc3d9e66649ac398c30e45f395c4eb
 - name: github.com/magiconair/properties
-  version: 8d7837e64d3c1ee4e54a880c5a920ab4316fc90a
+  version: 2c9e9502788518c97fe44e8955cd069417ee89df
 - name: github.com/mitchellh/mapstructure
-  version: d0303fe809921458f417bcf828397a65db30a7e4
+  version: 00c29f56e2386353d58c599509e8dc3801b0d716
 - name: github.com/pelletier/go-toml
-  version: 2009e44b6f182e34d8ce081ac2767622937ea3d4
+  version: 66540cf1fcd2c3aee6f6787dfa32a6ae9a870f12
 - name: github.com/pkg/errors
-  version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
+  version: 816c9085562cd7ee03e7f8188a1cfd942858cded
 - name: github.com/sirupsen/logrus
-  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
+  version: 778f2e774c725116edbc3d039dc0dfc1cc62aae8
   subpackages:
   - hooks/test
 - name: github.com/spf13/afero
-  version: e67d870304c4bca21331b02f414f970df13aa694
+  version: 63644898a8da0bc22138abf860edaf5277b6102e
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: acbeb36b902d72a7a4c18e8f3241075e7ab763e4
+  version: 8965335b8c7107321228e3e3702cab9832751bac
 - name: github.com/spf13/jwalterweatherman
-  version: 12bd96e66386c1960ab0f74ced1362f66f552f7b
+  version: 7c0cea34c8ece3fbeb2b27ab9b59511d360fb394
 - name: github.com/spf13/pflag
-  version: 1f33b80956cde38911d1f23d764deb8d77a649ce
+  version: 583c0c0531f06d5278b7d917446061adc344b5cd
 - name: github.com/spf13/viper
-  version: d9cca5ef33035202efb1586825bdbb15ff9ec3ba
+  version: 8dc2790b029dc41e2b8ff772c63c26adbb1db70d
 - name: golang.org/x/crypto
-  version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
+  version: d6449816ce06963d9d136eee5a56fca5b0616e7e
   subpackages:
   - ssh/terminal
 - name: golang.org/x/sys
-  version: 686000749eaec0b8855b8eef5336cf63899fe51d
+  version: b126b21c05a91c856b027c16779c12e3bf236954
   subpackages:
   - unix
   - windows
 - name: golang.org/x/text
-  version: c01e4764d870b77f8abe5096ee19ad20d80e8075
+  version: 7922cc490dd5a7dbaa7fd5d6196b49db59ac042f
   subpackages:
   - encoding
   - encoding/charmap
@@ -66,6 +67,8 @@ imports:
   - encoding/simplifiedchinese
   - encoding/traditionalchinese
   - encoding/unicode
+  - internal/language
+  - internal/language/compact
   - internal/tag
   - internal/utf8internal
   - language
@@ -73,10 +76,10 @@ imports:
   - transform
   - unicode/norm
 - name: gopkg.in/yaml.v2
-  version: eb3733d160e74a9c7e442f435eb3bea458e1d19f
+  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 testImports:
 - name: github.com/onsi/ginkgo
-  version: 11459a886d9cd66b319dac7ef1e917ee221372c9
+  version: 68f622cf9b05e245b580cda6debc2b1bd3094c97
   subpackages:
   - config
   - extensions/table
@@ -97,7 +100,7 @@ testImports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: 283ed655c6b8238afecd5bea6434bc9b03129f2f
+  version: 649b44d988ce182cabcda7dba01fcf3b6179ad19
   subpackages:
   - format
   - gbytes
@@ -113,7 +116,7 @@ testImports:
   - matchers/support/goraph/util
   - types
 - name: golang.org/x/net
-  version: 1087133bc4af3073e18add999345c6ae75918503
+  version: 8d16fa6dc9a85c1cd3ed24ad08ff21cf94f10888
   subpackages:
   - html
   - html/atom

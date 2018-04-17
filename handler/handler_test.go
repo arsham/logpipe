@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
-	"github.com/arsham/logpipe/internal/config"
-	"github.com/arsham/logpipe/internal/handler"
+	"github.com/arsham/logpipe/handler"
 	"github.com/arsham/logpipe/reader"
+	"github.com/arsham/logpipe/tools"
+	"github.com/arsham/logpipe/tools/config"
 	"github.com/arsham/logpipe/writer"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -92,15 +92,15 @@ func randBytes(n int) []byte {
 var _ = Describe("Handler", func() {
 	Describe("New", func() {
 		var (
-			logger internal.FieldLogger
+			logger tools.FieldLogger
 			err    error
 			s      *handler.Service
 		)
 
 		Context("when no writer is passed", func() {
 			JustBeforeEach(func() {
-				logger = internal.DiscardLogger()
-				s, err = handler.New(logger)
+				logger = tools.DiscardLogger()
+				s, err = handler.New(handler.WithLogger(logger))
 			})
 
 			It("should return an error", func() {
@@ -115,22 +115,23 @@ var _ = Describe("Handler", func() {
 		Context("when no logger is passed", func() {
 			JustBeforeEach(func() {
 				writers := handler.WithWriters(new(bytes.Buffer))
-				s, err = handler.New(nil, writers)
+				s, err = handler.New(writers)
 			})
 
-			It("should return an error", func() {
-				Expect(errors.Cause(err)).To(Equal(handler.ErrNilLogger))
+			It("should not return any error", func() {
+				Expect(err).NotTo(HaveOccurred())
 			})
 
-			Specify("service is nil", func() {
-				Expect(s).To(BeNil())
+			Specify("service is not nil", func() {
+				Expect(s).NotTo(BeNil())
 			})
 		})
 
 		Context("when no timeout is set", func() {
 			JustBeforeEach(func() {
 				writers := handler.WithWriters(new(bytes.Buffer))
-				s, err = handler.New(internal.DiscardLogger(), writers)
+				l := handler.WithLogger(tools.DiscardLogger())
+				s, err = handler.New(l, writers)
 			})
 
 			It("should not error", func() {
@@ -163,8 +164,9 @@ var _ = Describe("Handler", func() {
 		Context("when adding one writer", func() {
 
 			JustBeforeEach(func() {
+				l := tools.DiscardLogger()
 				s, err = handler.New(
-					internal.DiscardLogger(),
+					handler.WithLogger(l),
 					handler.WithWriters(w1),
 				)
 				Expect(err).NotTo(HaveOccurred())
@@ -178,8 +180,9 @@ var _ = Describe("Handler", func() {
 		Context("when adding multiple writers", func() {
 
 			JustBeforeEach(func() {
+				l := tools.DiscardLogger()
 				s, err = handler.New(
-					internal.DiscardLogger(),
+					handler.WithLogger(l),
 					handler.WithWriters(w1),
 					handler.WithWriters(w2),
 				)
@@ -195,8 +198,9 @@ var _ = Describe("Handler", func() {
 		Context("when adding a writer after creation", func() {
 
 			JustBeforeEach(func() {
+				l := tools.DiscardLogger()
 				s, err = handler.New(
-					internal.DiscardLogger(),
+					handler.WithLogger(l),
 					handler.WithWriters(w1),
 				)
 				Expect(err).NotTo(HaveOccurred())
@@ -212,8 +216,9 @@ var _ = Describe("Handler", func() {
 		Context("if one writer was added multiple times", func() {
 
 			JustBeforeEach(func() {
+				l := tools.DiscardLogger()
 				s, err = handler.New(
-					internal.DiscardLogger(),
+					handler.WithLogger(l),
 					handler.WithWriters(w1),
 					handler.WithWriters(w1),
 				)
@@ -232,7 +237,7 @@ var _ = Describe("Handler", func() {
 		var (
 			location string
 			c        config.Setting
-			logger   internal.FieldLogger
+			logger   tools.FieldLogger
 		)
 
 		JustBeforeEach(func() {
@@ -264,7 +269,7 @@ var _ = Describe("Handler", func() {
 				s   *handler.Service
 			)
 			BeforeEach(func() {
-				logger = internal.DiscardLogger()
+				logger = tools.DiscardLogger()
 				f, err = ioutil.TempFile("", "test_handler_with_config")
 				Expect(err).NotTo(HaveOccurred())
 				location = f.Name()
@@ -292,7 +297,7 @@ var _ = Describe("Handler", func() {
 			)
 			BeforeEach(func() {
 				buf = new(bytes.Buffer)
-				logger = internal.WithWriter(buf)
+				logger = tools.WithWriter(buf)
 				c = config.Setting{
 					Writers: map[string]map[string]string{
 						warned: {
@@ -345,10 +350,9 @@ var _ = Describe("Handler", func() {
 
 			Describe("post handling", func() {
 				var (
-					h            http.Handler
 					rec          *httptest.ResponseRecorder
 					logWriter    *logLocker
-					logger       internal.FieldLogger
+					logger       tools.FieldLogger
 					file1, file2 *timedWriter
 					service      *handler.Service
 					flushDelay   = writer.MinimumDelay + time.Millisecond
@@ -359,7 +363,7 @@ var _ = Describe("Handler", func() {
 						new(bytes.Buffer),
 						new(sync.Mutex),
 					}
-					logger = internal.WithWriter(logWriter)
+					logger = tools.WithWriter(logWriter)
 					rec = httptest.NewRecorder()
 
 					file1 = &timedWriter{delay: flushDelay}
@@ -370,7 +374,6 @@ var _ = Describe("Handler", func() {
 						Writers: writers,
 						Logger:  logger,
 					}
-					h = http.HandlerFunc(service.RecieveHandler)
 				})
 
 				DescribeTable("with bad json object", func(message string, status int, errMsg error) {
@@ -379,7 +382,7 @@ var _ = Describe("Handler", func() {
 
 					req.Header.Set("Content-Type", "application/json")
 
-					h.ServeHTTP(rec, req)
+					service.ServeHTTP(rec, req)
 					Expect(rec.Code).To(Equal(status))
 					Eventually(logWriter.String()).Should(ContainSubstring(errMsg.Error()))
 				},
@@ -393,7 +396,6 @@ var _ = Describe("Handler", func() {
 					var (
 						req *http.Request
 						w   *timedWriter
-						h   http.Handler
 						err error
 					)
 
@@ -406,14 +408,13 @@ var _ = Describe("Handler", func() {
 							Writers: []io.Writer{w},
 							Logger:  logger,
 						}
-						h = http.HandlerFunc(s.RecieveHandler)
 
 						message := fmt.Sprintf(`{"type":"error","message":"%s","timestamp":"2017-01-01"}`, randBytes(100))
 						req, err = http.NewRequest("POST", "/", bytes.NewBuffer([]byte(message)))
 						Expect(err).NotTo(HaveOccurred())
 
 						req.Header.Set("Content-Type", "application/json")
-						h.ServeHTTP(rec, req)
+						s.ServeHTTP(rec, req)
 					})
 
 					It("should not error", func() {
@@ -443,7 +444,7 @@ var _ = Describe("Handler", func() {
 						Expect(err).NotTo(HaveOccurred())
 
 						req.Header.Set("Content-Type", "application/json")
-						h.ServeHTTP(rec, req)
+						service.ServeHTTP(rec, req)
 					})
 
 					It("should eventually write the log entry", func() {
@@ -473,7 +474,7 @@ var _ = Describe("Handler", func() {
 						Expect(err).NotTo(HaveOccurred())
 
 						req.Header.Set("Content-Type", "application/json")
-						h.ServeHTTP(rec, req)
+						service.ServeHTTP(rec, req)
 					})
 
 					Context("when both writers are available", func() {
@@ -526,7 +527,6 @@ var _ = Describe("Handler", func() {
 						}
 
 						Expect(handler.WithWriters(file1, file2, file3)(service)).NotTo(HaveOccurred())
-						h := http.HandlerFunc(service.RecieveHandler)
 
 						errMsg = string(randBytes(100))
 						message := fmt.Sprintf(`{"type":"%s","message":"%s","timestamp":"%s"}`,
@@ -538,7 +538,7 @@ var _ = Describe("Handler", func() {
 						Expect(err).NotTo(HaveOccurred())
 
 						req.Header.Set("Content-Type", "application/json")
-						h.ServeHTTP(rec, req)
+						service.ServeHTTP(rec, req)
 
 						close(done)
 
@@ -576,7 +576,7 @@ var _ = Describe("Handler", func() {
 						Expect(err).NotTo(HaveOccurred())
 
 						req.Header.Set("Content-Type", "application/json")
-						h.ServeHTTP(rec, req)
+						service.ServeHTTP(rec, req)
 					})
 
 					It("should eventually log an error", func() {

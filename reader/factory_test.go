@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/reader"
+	"github.com/arsham/logpipe/tools"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -21,7 +21,7 @@ import (
 var _ = Describe("GetReader", func() {
 	var (
 		hook   *test.Hook
-		logger internal.FieldLogger
+		logger tools.FieldLogger
 	)
 
 	BeforeEach(func() {
@@ -65,7 +65,7 @@ var _ = Describe("GetReader", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(r).NotTo(BeNil())
 				p := r.(*reader.Plain)
-				Expect(p.Kind).To(Equal(reader.INFO))
+				Expect(p.Kind).To(Equal(reader.InfoLevel))
 			})
 		})
 

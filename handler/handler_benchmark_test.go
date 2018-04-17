@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
-	"github.com/arsham/logpipe/internal/handler"
+	"github.com/arsham/logpipe/handler"
 	"github.com/arsham/logpipe/reader"
+	"github.com/arsham/logpipe/tools"
 )
 
 func BenchmarkHandlerPostMode(b *testing.B) {
@@ -53,12 +53,11 @@ func BenchmarkHandlerPostMode(b *testing.B) {
 		b.Run(t.name, func(b *testing.B) {
 
 			s := &handler.Service{
-				Logger:  internal.DiscardLogger(),
+				Logger:  tools.DiscardLogger(),
 				Writers: t.writers,
 			}
 
-			handler := http.HandlerFunc(s.RecieveHandler)
-			ts := httptest.NewServer(handler)
+			ts := httptest.NewServer(s)
 			defer ts.Close()
 
 			errMsg := string(randBytes(t.msgLen))
@@ -118,11 +117,9 @@ func BenchmarkHandlerInternalMode(b *testing.B) {
 		b.Run(t.name, func(b *testing.B) {
 
 			s := &handler.Service{
-				Logger:  internal.DiscardLogger(),
+				Logger:  tools.DiscardLogger(),
 				Writers: t.writers,
 			}
-
-			h := http.HandlerFunc(s.RecieveHandler)
 
 			errMsg := string(randBytes(t.msgLen))
 			message := fmt.Sprintf(`{"type":"error","message":"%s","timestamp":"%s"}`,
@@ -138,7 +135,7 @@ func BenchmarkHandlerInternalMode(b *testing.B) {
 			rec := httptest.NewRecorder()
 
 			for i := 0; i < b.N; i++ {
-				h.ServeHTTP(rec, req)
+				s.ServeHTTP(rec, req)
 				if rec.Code != http.StatusOK {
 					b.Error("bad request")
 				}

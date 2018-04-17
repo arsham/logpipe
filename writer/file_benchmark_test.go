@@ -28,7 +28,7 @@ func BenchmarkFileWrites(b *testing.B) {
 		b.Run(t.name, func(b *testing.B) {
 			rowString := bytes.Repeat([]byte("a"), t.col)
 			for n := 0; n < b.N; n++ {
-				fl, err := writer.NewFile(writer.WithFileLoc(os.DevNull))
+				fl, err := writer.NewFile(writer.WithLocation(os.DevNull))
 				defer fl.Flush()
 
 				if err != nil {

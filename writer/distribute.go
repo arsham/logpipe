@@ -36,8 +36,8 @@ type result struct {
 	err error
 }
 
-// Write writes the input bytes into the writers concurrently.
-// It returns an error if any of the writers fail to write.
+// Write writes the input bytes into the writers concurrently. It returns an
+// error if any of the writers fail to write.
 func (c *Distribute) Write(p []byte) (int, error) {
 	var (
 		wg  sync.WaitGroup

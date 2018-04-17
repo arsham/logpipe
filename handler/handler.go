@@ -3,10 +3,10 @@
 // License that can be found in the LICENSE file.
 
 // Package handler contains bootstrapping logic for the application, and all
-// handlers for serving POST requests. The payload should have at least one
-// key: message. And it contains the log entry for writing. If a "type" for
-// the entry is not provided, it falls back to "info". If the "timestamp" is
-// not provided, it uses the current time it receives the payload.
+// handlers for serving POST requests. The payload should have at least one key:
+// message. And it contains the log entry for writing. If a "type" for the entry
+// is not provided, it falls back to "info". If the "timestamp" is not provided,
+// it uses the current time it receives the payload.
 package handler
 
 import (
@@ -15,28 +15,28 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
-	"github.com/arsham/logpipe/internal/config"
 	"github.com/arsham/logpipe/reader"
+	"github.com/arsham/logpipe/tools"
+	"github.com/arsham/logpipe/tools/config"
 	"github.com/arsham/logpipe/writer"
 	"github.com/pkg/errors"
 )
 
-// Service listens to the incoming http requests and decides how to route
-// the payload to be written.
+// Service listens to the incoming http requests and decides how to route the
+// payload to be written.
 type Service struct {
 	// Writers is a slice of all writers.
 	Writers []io.Writer
 
 	// Logger is used for logging service's behaviours.
-	Logger internal.FieldLogger
+	Logger tools.FieldLogger
 
 	// timeout for shutting down the http server. Default is 5 seconds.
 	timeout time.Duration
 }
 
 // New returns an error if there is no logger or no writer specified.
-func New(logger internal.FieldLogger, opts ...func(*Service) error) (*Service, error) {
+func New(opts ...func(*Service) error) (*Service, error) {
 	s := &Service{}
 	for _, f := range opts {
 		err := f(s)
@@ -45,10 +45,9 @@ func New(logger internal.FieldLogger, opts ...func(*Service) error) (*Service, e
 		}
 	}
 
-	if logger == nil {
-		return nil, ErrNilLogger
+	if s.Logger == nil {
+		s.Logger = tools.GetLogger("error")
 	}
-	s.Logger = logger
 
 	if len(s.Writers) == 0 {
 		return nil, ErrNoWriter
@@ -62,20 +61,19 @@ func New(logger internal.FieldLogger, opts ...func(*Service) error) (*Service, e
 }
 
 // Timeout returns the timeout associated with this service.
-func (l *Service) Timeout() time.Duration    { return l.timeout }
-func (l *Service) Handler() http.HandlerFunc { return l.RecieveHandler }
+func (l *Service) Timeout() time.Duration { return l.timeout }
+
 func (l *Service) writeError(w http.ResponseWriter, err error, status int) {
 	w.WriteHeader(status)
 	fmt.Fprint(w, err.Error())
 	l.Logger.Error(err)
 }
 
-// RecieveHandler handles the logs coming from the endpoint.
-// It handles the writes in a goroutine in order to avoid write loss.
-// It will log any errors that might occur during writes.
-// It returns a http.StatusBadRequest if the payload is not a valid JSON object
-// or does not contain the required fields.
-func (l *Service) RecieveHandler(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP handles the logs coming from the endpoint. It handles the writes in
+// a goroutine in order to avoid write loss. It will log any errors that might
+// occur during writes. It returns a http.StatusBadRequest if the payload is not
+// a valid JSON object or does not contain the required fields.
+func (l *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rd, err := reader.GetReader(r.Body, l.Logger)
 	if errors.Cause(err) != nil {
 		l.writeError(w, errors.Wrap(err, ErrGettingReader.Error()), http.StatusBadRequest)
@@ -111,7 +109,7 @@ func WithWriters(ws ...io.Writer) func(*Service) error {
 // WithConfWriters uses a config.Setting object to set up the writers.
 // If any errors occurred during writer instantiation, it stops and
 // returns that error.
-func WithConfWriters(logger internal.FieldLogger, c *config.Setting) func(*Service) error {
+func WithConfWriters(logger tools.FieldLogger, c *config.Setting) func(*Service) error {
 	var (
 		fileLocation string
 		ok           bool
@@ -128,8 +126,7 @@ LOOP:
 			}
 
 			w, err := writer.NewFile(
-				writer.WithLogger(logger),
-				writer.WithFileLoc(fileLocation),
+				writer.WithLocation(fileLocation),
 			)
 			if err != nil {
 				return func(*Service) error {
@@ -150,6 +147,14 @@ func WithTimeout(timeout time.Duration) func(*Service) error {
 			return ErrTimeout
 		}
 		s.timeout = timeout
+		return nil
+	}
+}
+
+// WithLogger sets the logger.
+func WithLogger(logger tools.FieldLogger) func(*Service) error {
+	return func(s *Service) error {
+		s.Logger = logger
 		return nil
 	}
 }

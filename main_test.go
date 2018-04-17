@@ -272,9 +272,9 @@ writers:
 				}, 2, 0.1).Should(ContainSubstring(level))
 
 			},
-				Entry("info", reader.INFO),
-				Entry("warn", reader.WARN),
-				Entry("error", reader.ERROR),
+				Entry("info", reader.InfoLevel),
+				Entry("warn", reader.WarnLevel),
+				Entry("error", reader.ErrorLevel),
 			)
 		})
 	})

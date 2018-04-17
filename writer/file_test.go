@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/writer"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -46,7 +45,7 @@ var _ = Describe("File", func() {
 
 			JustBeforeEach(func() {
 				file, err = writer.NewFile(
-					writer.WithFileLoc(filename),
+					writer.WithLocation(filename),
 				)
 			})
 
@@ -62,7 +61,7 @@ var _ = Describe("File", func() {
 				It("should create a new file", func() {
 					os.Remove(filename)
 					file, err = writer.NewFile(
-						writer.WithFileLoc(filename),
+						writer.WithLocation(filename),
 					)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(file.Name()).To(BeAnExistingFile())
@@ -129,7 +128,7 @@ var _ = Describe("File", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			file, err = writer.NewFile(
-				writer.WithFileLoc(f.Name()),
+				writer.WithLocation(f.Name()),
 			)
 			Expect(err).NotTo(HaveOccurred())
 			line1 = []byte("line 1 contents")
@@ -230,7 +229,7 @@ var _ = Describe("File", func() {
 				file.Flush()
 				file.Close()
 
-				file, _ := writer.NewFile(writer.WithFileLoc(
+				file, _ := writer.NewFile(writer.WithLocation(
 					f.Name()),
 				)
 				n, err := file.Write(line2)
@@ -339,22 +338,6 @@ func TestWithDelay(t *testing.T) {
 	m := writer.MinimumDelay - time.Nanosecond
 	if err := writer.WithFlushDelay(m)(file); err == nil {
 		t.Error("want error, got nil")
-	}
-}
-
-func TestWithLogger(t *testing.T) {
-	file := &writer.File{}
-	if err := writer.WithLogger(nil)(file); err == nil {
-		t.Error("want error, got nil")
-	}
-
-	logger := internal.DiscardLogger()
-	if err := writer.WithLogger(logger)(file); err != nil {
-		t.Errorf("want (nil), got (%v)", err)
-	}
-
-	if file.Logger() != logger {
-		t.Errorf("want file.logger to be (%v), got (%v)", logger, file.Logger())
 	}
 }
 

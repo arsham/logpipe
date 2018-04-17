@@ -3,10 +3,9 @@ sudo: required
 language: go
 
 go:
-  - 1.8
   - 1.8.x
-  - 1.9
   - 1.9.x
+  - 1.10.x
   - tip
 
 matrix:
@@ -15,12 +14,12 @@ matrix:
 
 install:
   - go get github.com/Masterminds/glide
-  - go get github.com/mattn/goveralls
+  - go get github.com/schrej/godacov
 
 script:
   - glide install
-  - go test $(glide nv)
+  - ./configs/coverage.sh
 
 after_success:
-  # the main.go file is fully covered in main_test.go
-  - goveralls -service=travis-ci -ignore="main.go"
+  - bash <(curl -s https://codecov.io/bash)
+  - godacov -t $CODACY_PROJECT_TOKEN -r ./coverage.txt -c $TRAVIS_COMMIT

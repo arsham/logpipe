@@ -14,3 +14,4 @@ logpipe
 *.out
 
 vendor/
+*.coverprofile

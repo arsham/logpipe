@@ -2,7 +2,7 @@
 // Use of this source code is governed by the Apache 2.0 license
 // License that can be found in the LICENSE file.
 
-package internal_test
+package tools_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestInternal(t *testing.T) {
+func TestTools(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Internal Suite")
+	RunSpecs(t, "Tools Suite")
 }

@@ -11,15 +11,14 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/arsham/logpipe/internal"
+	"github.com/arsham/logpipe/tools"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 // TimestampFormat is the default formatting defined for logs.
+// TODO: use this format "2006-01-02 15:04:05"
 var TimestampFormat = time.RFC3339
-
-// var TimestampFormat = "2006-01-02 15:04:05"
 
 // Plain implements the io.Reader interface and can read a json object and
 // output a one line error message. For example:
@@ -33,14 +32,15 @@ var TimestampFormat = time.RFC3339
 // Will become:
 //     [2017-10-09 10:45:00] [ERROR] something happened
 //
+// Because Plain might be used for multiple writes, we compile the output only
+// once.
 type Plain struct {
 	Kind      string
 	Message   string
 	Timestamp time.Time
-	Logger    internal.FieldLogger
-
-	once     sync.Once
-	compiled io.Reader
+	Logger    tools.FieldLogger
+	once      sync.Once
+	compiled  io.Reader
 }
 
 // TextFormatter is used for rendering a custom format. We need to put the time
@@ -85,7 +85,7 @@ func (p *Plain) Read(b []byte) (int, error) {
 
 	if p.Kind == "" {
 		p.Logger.Debugf("falling back to info: %s", b)
-		p.Kind = INFO
+		p.Kind = InfoLevel
 	}
 
 	p.once.Do(func() {
@@ -98,11 +98,11 @@ func (p *Plain) Read(b []byte) (int, error) {
 		logger.Out = buf
 		ll := logger.WithField("time", p.Timestamp.Format(TimestampFormat))
 		switch p.Kind {
-		case INFO:
+		case InfoLevel:
 			ll.Info(p.Message)
-		case WARN:
+		case WarnLevel:
 			ll.Warn(p.Message)
-		case ERROR:
+		case ErrorLevel:
 			ll.Error(p.Message)
 		}
 		p.compiled = buf
