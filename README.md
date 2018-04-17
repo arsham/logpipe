@@ -3,8 +3,9 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GoDoc](https://godoc.org/github.com/arsham/logpipe?status.svg)](http://godoc.org/github.com/arsham/logpipe)
 [![Build Status](https://travis-ci.org/arsham/logpipe.svg?branch=master)](https://travis-ci.org/arsham/logpipe)
-[![Coverage Status](https://coveralls.io/repos/github/arsham/logpipe/badge.svg?branch=master)](https://coveralls.io/github/arsham/logpipe?branch=master)
+[![Coverage Status](https://codecov.io/gh/arsham/logpipe/branch/master/graph/badge.svg)](https://codecov.io/gh/arsham/logpipe)
 [![Go Report Card](https://goreportcard.com/badge/github.com/arsham/logpipe)](https://goreportcard.com/report/github.com/arsham/logpipe)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/7ebb9c89fb2a4e1d9c438ffbb409260a)](https://www.codacy.com/app/arsham/logpipe?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=arsham/logpipe&amp;utm_campaign=Badge_Grade)
 
 Logpipe can redirect your application's `logs` to a generic logfile, or to [ElasticSearch][elasticsearch] for aggregate and view with [kibana][kibana]. It can receive the logs in `JSON` format or plain line.
 

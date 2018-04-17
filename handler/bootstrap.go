@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
-	"github.com/arsham/logpipe/internal/config"
+	"github.com/arsham/logpipe/tools"
+	"github.com/arsham/logpipe/tools/config"
 	"github.com/pkg/errors"
 )
 
@@ -22,27 +22,27 @@ import (
 
 // Server is an interface for the handler.Service
 type Server interface {
-	Handler() http.HandlerFunc
+	http.Handler
 	Timeout() time.Duration
 }
 
-// ServeHTTP will set up the handlers and starts listening to the port. It
-// sets up the server in a goroutine. It will shut down when it receives an
-// Interrupt signal from the OS. It will hold on to the active connections
-// until they finish their work, or a timeout occurs.
-// It returns any errors occurred during the service.
-var ServeHTTP func(s Server, logger internal.FieldLogger, stop chan os.Signal, port int) error
+// ServeHTTP will set up the handlers and starts listening to the port. It sets
+// up the server in a goroutine. It will shut down when it receives an Interrupt
+// signal from the OS. It will hold on to the active connections until they
+// finish their work, or a timeout occurs. It returns any errors occurred during
+// the service.
+var ServeHTTP func(s Server, logger tools.FieldLogger, stop chan os.Signal, port int) error
 
 func init() {
 	ServeHTTP = serveHTTP
 }
 
-// Bootstrap reads the command options and starts the server.
-// It returns nil when the server finishes its work successfully, or else it
-// will return the error
-func Bootstrap(logger internal.FieldLogger, configFile string, port int) error {
+// Bootstrap reads the command options and starts the server. It returns nil
+// when the server finishes its work successfully, or else it will return the
+// error.
+func Bootstrap(logger tools.FieldLogger, configFile string, port int) error {
 	if logger == nil {
-		logger = internal.GetLogger("error")
+		logger = tools.GetLogger("error")
 	}
 
 	stop := make(chan os.Signal, 1)
@@ -50,26 +50,27 @@ func Bootstrap(logger internal.FieldLogger, configFile string, port int) error {
 
 	c, err := config.Read(configFile)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("while reading config file: %s", configFile))
+		return errors.Wrap(err, fmt.Sprintf("reading config file: %s", configFile))
 	}
 
 	logger.Infof("config file: %s", configFile)
 
 	s, err := New(
-		logger,
+		WithLogger(logger),
 		WithConfWriters(logger, c),
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("while creating the service. Config file: %s", configFile))
+		return errors.Wrap(err, fmt.Sprintf("creating the service: %s", configFile))
 	}
 
 	logger.Infof("running on port: %d", port)
 	return ServeHTTP(s, logger, stop, port)
 }
 
-func serveHTTP(s Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+// see ServeHTTP.
+func serveHTTP(s Server, logger tools.FieldLogger, stop chan os.Signal, port int) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.Handler())
+	mux.Handle("/", s)
 	h := &http.Server{
 		Addr:    ":" + strconv.Itoa(port),
 		Handler: mux,

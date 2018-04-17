@@ -2,7 +2,7 @@
 // Use of this source code is governed by the Apache 2.0 license
 // License that can be found in the LICENSE file.
 
-package internal
+package tools
 
 import (
 	"io"
@@ -28,16 +28,12 @@ type Entry struct{ *logrus.Entry }
 // StandardLogger returns an instance of Logger
 func StandardLogger() *Logger { return &Logger{logrus.StandardLogger()} }
 
+// The following constants are log levels matching logrus' levels.
 const (
-	// InfoLevel for Info level
-	InfoLevel = logrus.InfoLevel
-	// WarnLevel for Warn level
-	WarnLevel = logrus.WarnLevel
-	// DebugLevel for Debug level
+	InfoLevel  = logrus.InfoLevel
+	WarnLevel  = logrus.WarnLevel
 	DebugLevel = logrus.DebugLevel
-	// ErrorLevel for Error level
 	ErrorLevel = logrus.ErrorLevel
-	// PanicLevel for Panic level
 	PanicLevel = logrus.PanicLevel
 )
 

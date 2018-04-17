@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/reader"
+	"github.com/arsham/logpipe/tools"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -24,7 +24,7 @@ import (
 var _ = Describe("Plain", func() {
 	var (
 		hook   *test.Hook
-		logger internal.FieldLogger
+		logger tools.FieldLogger
 	)
 
 	BeforeEach(func() {
@@ -135,8 +135,8 @@ var _ = Describe("Plain", func() {
 					)
 
 					BeforeEach(func() {
-						expected = fmt.Sprintf(format, nowStr, reader.ERROR, message)
-						kind = reader.ERROR
+						expected = fmt.Sprintf(format, nowStr, reader.ErrorLevel, message)
+						kind = reader.ErrorLevel
 						b = make([]byte, len(expected))
 					})
 					It("should not error or return io.EOF", func() {
@@ -157,8 +157,8 @@ var _ = Describe("Plain", func() {
 					)
 
 					BeforeEach(func() {
-						expected = fmt.Sprintf(format, nowStr, reader.WARN, message)
-						kind = reader.WARN
+						expected = fmt.Sprintf(format, nowStr, reader.WarnLevel, message)
+						kind = reader.WarnLevel
 						buf = &bytes.Buffer{}
 					})
 					It("should not error or return io.EOF", func() {
@@ -177,8 +177,8 @@ var _ = Describe("Plain", func() {
 					var expected string
 
 					BeforeEach(func() {
-						expected = fmt.Sprintf(format, nowStr, reader.INFO, message)
-						kind = reader.INFO
+						expected = fmt.Sprintf(format, nowStr, reader.InfoLevel, message)
+						kind = reader.InfoLevel
 					})
 					It("should not error or return io.EOF", func() {
 						_, err := ioutil.ReadAll(rp)
@@ -210,9 +210,9 @@ var _ = Describe("TextFormatter", func() {
 				"time":  timeStr,
 			}
 			entry = logrus.Entry{
-				Logger:  internal.DiscardLogger().Logger,
+				Logger:  tools.DiscardLogger().Logger,
 				Time:    t,
-				Level:   internal.WarnLevel,
+				Level:   tools.WarnLevel,
 				Message: "this is a message",
 				Data:    data,
 			}

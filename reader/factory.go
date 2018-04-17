@@ -9,25 +9,22 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/arsham/logpipe/internal"
+	"github.com/arsham/logpipe/tools"
 	jason "github.com/bitly/go-simplejson"
 	"github.com/pkg/errors"
 )
 
+// The following constants are used for log levels.
 const (
-	// INFO is a log level.
-	INFO = "info"
-	// ERROR is a log level.
-	ERROR = "error"
-	// WARN is a log level.
-	WARN = "warning"
+	InfoLevel  = "info"
+	ErrorLevel = "error"
+	WarnLevel  = "warning"
 )
 
-// GetReader tries to guess an appropriate reader from the input reader
-// and returns it. It will fall back to Plain reader.
-// It returns an error if there is no type or message are in the input or the
-// message is empty.
-func GetReader(r io.Reader, logger internal.FieldLogger) (io.Reader, error) {
+// GetReader tries to guess an appropriate reader from the input reader and
+// returns it. It will fall back to Plain reader. It returns an error if there
+// is no type or message are in the input or the message is empty.
+func GetReader(r io.Reader, logger tools.FieldLogger) (io.Reader, error) {
 	j, err := jason.NewFromReader(r)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrCorruptedJSON.Error())
@@ -41,7 +38,7 @@ func GetReader(r io.Reader, logger internal.FieldLogger) (io.Reader, error) {
 
 	kind, err := j.Get("type").String()
 	if err != nil || kind == "" {
-		kind = INFO
+		kind = InfoLevel
 	}
 
 	message, err := j.Get("message").String()

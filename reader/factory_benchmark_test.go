@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/arsham/logpipe/internal"
 	"github.com/arsham/logpipe/reader"
+	"github.com/arsham/logpipe/tools"
 )
 
 func BenchmarkGetReaderPlain(b *testing.B) {
@@ -27,7 +27,7 @@ func BenchmarkGetReaderPlain(b *testing.B) {
 
 	for _, t := range tc {
 		b.Run(t.name, func(b *testing.B) {
-			logger := internal.DiscardLogger()
+			logger := tools.DiscardLogger()
 			input := []byte(
 				fmt.Sprintf(
 					`{"type":"error","message":"%s","timestamp":"%s"}`,

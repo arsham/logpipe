@@ -6,19 +6,11 @@ package reader
 
 import "github.com/pkg/errors"
 
+// Errors returned when reading.
 var (
-	// ErrNilTimestamp is returned when timestamp is and empty time.Time
-	ErrNilTimestamp = errors.New("nil timestamp")
-
-	// ErrEmptyMessage is returned when the message body is an empty string.
-	ErrEmptyMessage = errors.New("empty message")
-
-	// ErrTimestamp is returned when the timestamp is not valid.
-	ErrTimestamp = errors.New("invalid timestamp")
-
-	// ErrEmptyObject is retuned when the payload is an empty object.
-	ErrEmptyObject = errors.New("empty object")
-
-	// ErrCorruptedJSON is returned the payload is corrupted.
+	ErrNilTimestamp  = errors.New("nil timestamp")
+	ErrEmptyMessage  = errors.New("empty message")
+	ErrTimestamp     = errors.New("invalid timestamp")
+	ErrEmptyObject   = errors.New("empty object")
 	ErrCorruptedJSON = errors.New("corrupted json")
 )

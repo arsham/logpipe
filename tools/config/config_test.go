@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/arsham/logpipe/internal/config"
+	"github.com/arsham/logpipe/tools/config"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

@@ -7,8 +7,8 @@ package main
 import (
 	"log"
 
-	"github.com/arsham/logpipe/internal"
-	"github.com/arsham/logpipe/internal/handler"
+	"github.com/arsham/logpipe/handler"
+	"github.com/arsham/logpipe/tools"
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -26,7 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	logger := internal.GetLogger(opts.LogLevel)
+	logger := tools.GetLogger(opts.LogLevel)
 	err = handler.Bootstrap(logger, opts.ConfigFile, opts.Port)
 	if err != nil {
 		logger.Fatal(err)

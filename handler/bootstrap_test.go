@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arsham/logpipe/internal"
-	"github.com/arsham/logpipe/internal/config"
-	"github.com/arsham/logpipe/internal/handler"
+	"github.com/arsham/logpipe/handler"
+	"github.com/arsham/logpipe/tools"
+	"github.com/arsham/logpipe/tools/config"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -74,8 +74,8 @@ writers:
 	Context("when calling the function", func() {
 
 		var (
-			serveFunc        func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error
-			logger           internal.FieldLogger
+			serveFunc        func(s handler.Server, logger tools.FieldLogger, stop chan os.Signal, port int) error
+			logger           tools.FieldLogger
 			logWriter        *logLocker
 			defaultServeFunc = handler.ServeHTTP
 		)
@@ -87,7 +87,7 @@ writers:
 				new(sync.Mutex),
 			}
 
-			logger = internal.WithWriter(logWriter)
+			logger = tools.WithWriter(logWriter)
 		})
 
 		AfterEach(func() {
@@ -114,7 +114,7 @@ writers:
 		Context("when passing a port number", func() {
 
 			BeforeEach(func() {
-				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+				serveFunc = func(s handler.Server, logger tools.FieldLogger, stop chan os.Signal, port int) error {
 					return nil
 				}
 			})
@@ -131,9 +131,9 @@ writers:
 		})
 
 		Context("when a the logger is nil", func() {
-			var thisLogger internal.FieldLogger
+			var thisLogger tools.FieldLogger
 			BeforeEach(func() {
-				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+				serveFunc = func(s handler.Server, logger tools.FieldLogger, stop chan os.Signal, port int) error {
 					thisLogger = logger
 					return nil
 				}
@@ -145,7 +145,7 @@ writers:
 			})
 
 			It("should get the default error logger", func() {
-				Eventually(thisLogger).Should(Equal(internal.GetLogger("error")))
+				Eventually(thisLogger).Should(Equal(tools.GetLogger("error")))
 			})
 
 			It("should start the server", func() {
@@ -162,7 +162,7 @@ writers:
 			BeforeEach(func() {
 				originType = writerType
 				writerType = "does not apply"
-				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+				serveFunc = func(s handler.Server, logger tools.FieldLogger, stop chan os.Signal, port int) error {
 					return expectedErr
 				}
 			})
@@ -185,7 +185,7 @@ writers:
 				err         error
 			)
 			BeforeEach(func() {
-				serveFunc = func(s handler.Server, logger internal.FieldLogger, stop chan os.Signal, port int) error {
+				serveFunc = func(s handler.Server, logger tools.FieldLogger, stop chan os.Signal, port int) error {
 					return expectedErr
 				}
 			})
@@ -203,7 +203,7 @@ writers:
 var _ = Describe("Serve", func() {
 	var (
 		port      int
-		logger    internal.FieldLogger
+		logger    tools.FieldLogger
 		logWriter *logLocker
 		timeout   = 500 * time.Millisecond
 	)
@@ -215,7 +215,7 @@ var _ = Describe("Serve", func() {
 			new(bytes.Buffer),
 			new(sync.Mutex),
 		}
-		logger = internal.WithWriter(logWriter)
+		logger = tools.WithWriter(logWriter)
 	})
 
 	Describe("setting up the server", func() {
