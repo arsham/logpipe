@@ -6,6 +6,7 @@
 [![Coverage Status](https://codecov.io/gh/arsham/logpipe/branch/master/graph/badge.svg)](https://codecov.io/gh/arsham/logpipe)
 [![Go Report Card](https://goreportcard.com/badge/github.com/arsham/logpipe)](https://goreportcard.com/report/github.com/arsham/logpipe)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/7ebb9c89fb2a4e1d9c438ffbb409260a)](https://www.codacy.com/app/arsham/logpipe?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=arsham/logpipe&amp;utm_campaign=Badge_Grade)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Farsham%2Flogpipe.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Farsham%2Flogpipe?ref=badge_shield)
 
 Logpipe can redirect your application's `logs` to a generic logfile, or to [ElasticSearch][elasticsearch] for aggregate and view with [kibana][kibana]. It can receive the logs in `JSON` format or plain line.
 
@@ -52,3 +53,6 @@ Use of this source code is governed by the Apache 2.0 license. License that can 
 [glide]: https://github.com/Masterminds/glide
 [elasticsearch]: https://github.com/elastic/elasticsearch
 [kibana]: https://github.com/elastic/kibana
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Farsham%2Flogpipe.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Farsham%2Flogpipe?ref=badge_large)
